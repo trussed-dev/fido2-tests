@@ -34,7 +34,6 @@ def test_Check_up_option(device,info,):
         if info.options["up"]:
             with pytest.raises(CtapError) as e:
                 device.sendMC(
-                    *FidoRequest().toMC(),
-                    options = {"up": True},
+                    *FidoRequest(options = {"up": True}).toMC(),
                 )
             assert e.value.code == CtapError.ERR.INVALID_OPTION

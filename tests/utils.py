@@ -1,4 +1,13 @@
 from fido2.ctap2 import ES256, PinProtocolV1, AttestedCredentialData
+from fido2.utils import sha256, hmac_sha256
+
+def verify(reg,auth,cdh = None):
+    credential_data = AttestedCredentialData(reg.auth_data.credential_data)
+    cdh = auth.request.cdh
+    auth.verify(cdh, credential_data.public_key)
+    assert (
+        auth.credential["id"] == reg.auth_data.credential_data.credential_id
+    )
 
 
 def generate_rp():
@@ -9,6 +18,7 @@ def generate_user():
 
 def generate_challenge():
     return "Y2hhbGxlbmdl"
+    return sha256("Y2hhbGxlbmdl".encode("utf8"))
 
 def get_key_params():
     return [{"type": "public-key", "alg": ES256.ALGORITHM}]
@@ -29,19 +39,30 @@ def generate(param):
         return get_key_params()
     if param == 'allow_list':
         return []
-    if param == 'pin_protocol':
-        return 1
+    return None
 
 class Empty:
     pass
 
 class FidoRequest():
-    def __init__(self, **kwargs):
+    def __init__(self, request = None, **kwargs):
 
-        request = kwargs.get('request', None)
+        if not isinstance(request, FidoRequest) and request is not None:
+            request = request.request
 
-        for i in ('cdh', 'key_params', 'allow_list', 'challenge', 'rp', 'user', 'pin_protocol'):
+        self.request = request
+
+        for i in ('cdh', 'key_params', 'allow_list', 'challenge',
+                'rp', 'user', 'pin_protocol', 'options', 'appid',
+                'exclude_list', 'extensions', 'pin_auth'):
             self.save_attr(i, kwargs.get(i, Empty), request)
+
+
+        if isinstance(self.rp,dict) and 'id' in self.rp:
+            if hasattr(self.rp["id"], 'encode'):
+                self.appid = sha256(self.rp["id"].encode("utf8"))
+
+        self.chal = sha256(self.challenge.encode("utf8"))
 
     def save_attr(self,attr,value,request):
         """
@@ -55,12 +76,18 @@ class FidoRequest():
         else:
             setattr(self, attr, generate(attr))
 
-
     def toGA(self,):
-        return [None if not self.rp else self.rp['id'], self.cdh, self.allow_list]
+        return [None if not self.rp else self.rp['id'], 
+                self.cdh, self.allow_list, self.extensions, self.options,
+                self.pin_auth, self.pin_protocol]
 
     def toMC(self,):
-        return [self.cdh, self.rp, self.user, self.key_params]
+        return [self.cdh, self.rp, self.user, self.key_params,
+                self.exclude_list, self.extensions, self.options,
+                self.pin_auth, self.pin_protocol]
+
+
+        return args + self.get_optional_args()
 
 
 

@@ -11,7 +11,7 @@ from fido2.utils import Timeout
 from fido2.ctap import CtapError
 from fido2.ctap2 import ES256, PinProtocolV1, AttestedCredentialData
 from fido2.utils import sha256, hmac_sha256
-
+from fido2.client import _call_polling
 
 from solo.fido2 import force_udp_backend
 
@@ -40,29 +40,50 @@ def info(device):
     return info
 
 @pytest.fixture(scope="module")
-def MCRes(device,):
-    req = FidoRequest(allow_list = [allowListItem])
-    res = device.sendMC(
+def MCRes(resetDevice,):
+    req = FidoRequest()
+    res = resetDevice.sendMC(
         *req.toMC(),
     )
     setattr(res,'request',req)
     return res
 
 @pytest.fixture(scope='class')
-def GARes(device,allowListItem):
-    req = FidoRequest(allow_list = [allowListItem])
+def GARes(device,MCRes):
+    req = FidoRequest(allow_list = [{
+        "id": MCRes.auth_data.credential_data.credential_id,
+        "type": "public-key",
+        }])
     res = device.sendGA(
         *req.toGA(),
     )
     setattr(res,'request',req)
     return res
 
+
+@pytest.fixture(scope="module")
+def RegRes(resetDevice,):
+    req = FidoRequest()
+    res = resetDevice.register(
+            req.chal, req.appid
+    )
+    setattr(res,'request',req)
+    return res
+
+@pytest.fixture(scope='class')
+def AuthRes(device, RegRes):
+    req = FidoRequest()
+    res = device.authenticate(
+        req.chal, req.appid, RegRes.key_handle
+    )
+    setattr(res,'request',req)
+    return res
+
+
+
 @pytest.fixture(scope='module')
 def allowListItem(MCRes):
-    return {
-            "id": MCRes.auth_data.credential_data.credential_id,
-            "type": "public-key",
-            }
+    return 
 
 @pytest.fixture(scope="session")
 def device(pytestconfig):
@@ -77,9 +98,14 @@ def device(pytestconfig):
 
     return dev
 
-@pytest.fixture()
+@pytest.fixture(scope='class')
 def rebootedDevice(device):
     device.reboot()
+    return device
+
+@pytest.fixture(scope='module')
+def resetDevice(device):
+    device.reset()
     return device
 
 class Packet(object):
@@ -213,6 +239,23 @@ class TestDevice:
                 raise CtapError(data[0])
         elif data[0] != err:
             raise ValueError("Unexpected error: %02x" % data[0])
+
+    def register(self, chal, appid):
+        reg_data = _call_polling(0.25, None, None, self.ctap1.register, chal, appid)
+        return reg_data
+
+    def authenticate(self, chal, appid, key_handle, check_only=False):
+        auth_data = _call_polling(
+            0.25,
+            None,
+            None,
+            self.ctap1.authenticate,
+            chal,
+            appid,
+            key_handle,
+            check_only=check_only,
+        )
+        return auth_data
 
     def reset(self,):
         print("Resetting Authenticator...")
