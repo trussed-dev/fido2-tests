@@ -15,6 +15,8 @@ from fido2.utils import sha256, hmac_sha256
 
 from solo.fido2 import force_udp_backend
 
+from tests.utils import *
+
 
 def pytest_addoption(parser):
     parser.addoption("--sim", action="store_true")
@@ -30,33 +32,37 @@ def is_simulation(pytestconfig):
 def is_nfc(pytestconfig):
     return pytestconfig.getoption("nfc")
 
-@pytest.fixture()
-def MCParams():
-    rp = {"id": "examplo.org", "name": "ExaRP"}
-    rp2 = {"id": "solokeys.com", "name": "ExaRP"}
-    user = {"id": b"usee_od", "name": "AB User"}
-    user1 = {"id": b"1234567890", "name": "Conor Patrick"}
-    user2 = {"id": b"oiewhfoi", "name": "Han Solo"}
-    user3 = {"id": b"23ohfpjwo@@", "name": "John Smith"}
-    challenge = "Y2hhbGxlbmdl"
-    pin_protocol = 1
-    key_params = [{"type": "public-key", "alg": ES256.ALGORITHM}]
-    cdh = b"123456789abcdef0123456789abcdef0"
-    return [cdh, rp, user, key_params]
+@pytest.fixture(scope="module")
+def info(device):
+    info = device.ctap2.get_info()
+    #print("data:", bytes(info))
+    #print("decoded:", cbor.decode_from(bytes(info)))
+    return info
 
-def GAParams():
-    rp = {"id": "examplo.org", "name": "ExaRP"}
-    rp2 = {"id": "solokeys.com", "name": "ExaRP"}
-    user = {"id": b"usee_od", "name": "AB User"}
-    user1 = {"id": b"1234567890", "name": "Conor Patrick"}
-    user2 = {"id": b"oiewhfoi", "name": "Han Solo"}
-    user3 = {"id": b"23ohfpjwo@@", "name": "John Smith"}
-    challenge = "Y2hhbGxlbmdl"
-    pin_protocol = 1
-    key_params = [{"type": "public-key", "alg": ES256.ALGORITHM}]
-    cdh = b"123456789abcdef0123456789abcdef0"
-    pass
+@pytest.fixture(scope="module")
+def MCRes(device,):
+    req = FidoRequest(allow_list = [allowListItem])
+    res = device.sendMC(
+        *req.toMC(),
+    )
+    setattr(res,'request',req)
+    return res
 
+@pytest.fixture(scope='class')
+def GARes(device,allowListItem):
+    req = FidoRequest(allow_list = [allowListItem])
+    res = device.sendGA(
+        *req.toGA(),
+    )
+    setattr(res,'request',req)
+    return res
+
+@pytest.fixture(scope='module')
+def allowListItem(MCRes):
+    return {
+            "id": MCRes.auth_data.credential_data.credential_id,
+            "type": "public-key",
+            }
 
 @pytest.fixture(scope="session")
 def device(pytestconfig):
@@ -71,6 +77,23 @@ def device(pytestconfig):
 
     return dev
 
+@pytest.fixture()
+def rebootedDevice(device):
+    device.reboot()
+    return device
+
+class Packet(object):
+    def __init__(self, data):
+        self.data = data
+
+    def ToWireFormat(self,):
+        return self.data
+
+    @staticmethod
+    def FromWireFormat(pkt_size, data):
+        return Packet(data)
+
+
 
 class TestDevice:
     def __init__(self, tester=None):
@@ -80,9 +103,9 @@ class TestDevice:
         self.is_sim = False
         self.nfc_interface_only = False
         if tester:
-            self.initFromTester(tester)
+            self.initFrom(tester)
 
-    def initFromTester(self, tester):
+    def initFrom(self, tester):
         self.user_count = tester.user_count
         self.is_sim = tester.is_sim
         self.dev = tester.dev
@@ -126,7 +149,7 @@ class TestDevice:
         if self.is_sim:
             print("Sending restart command...")
             self.send_magic_reboot()
-            Tester.delay(0.25)
+            TestDevice.delay(0.25)
         else:
             print("Please reboot authentictor and hit enter")
             input()
