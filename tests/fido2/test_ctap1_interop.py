@@ -10,10 +10,10 @@ from tests.utils import FidoRequest
 class TestCtap1WithCtap2(object):
 
     def test_ctap1_register(self, RegRes):
-        RegRes.verify(RegRes.request.appid, RegRes.request.chal)
+        RegRes.verify(RegRes.request.appid, RegRes.request.challenge)
 
     def test_ctap1_authenticate(self, RegRes, AuthRes):
-        AuthRes.verify(AuthRes.request.appid, AuthRes.request.chal, RegRes.public_key)
+        AuthRes.verify(AuthRes.request.appid, AuthRes.request.challenge, RegRes.public_key)
 
     def test_authenticate_ctap1_through_ctap2(self, device, RegRes):
         req = FidoRequest(allow_list = [{"id": RegRes.key_handle, "type": "public-key"}])

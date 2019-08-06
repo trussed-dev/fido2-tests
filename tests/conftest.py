@@ -65,7 +65,7 @@ def GARes(device,MCRes):
 def RegRes(resetDevice,):
     req = FidoRequest()
     res = resetDevice.register(
-            req.chal, req.appid
+            req.challenge, req.appid
     )
     setattr(res,'request',req)
     return res
@@ -74,7 +74,7 @@ def RegRes(resetDevice,):
 def AuthRes(device, RegRes):
     req = FidoRequest()
     res = device.authenticate(
-        req.chal, req.appid, RegRes.key_handle
+        req.challenge, req.appid, RegRes.key_handle
     )
     setattr(res,'request',req)
     return res

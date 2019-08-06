@@ -1,9 +1,15 @@
+import secrets
+import random
+
 from fido2.ctap2 import ES256, PinProtocolV1, AttestedCredentialData
 from fido2.utils import sha256, hmac_sha256
 
+
+name_list = open('data/first-names.txt').readlines()
+
 def verify(reg,auth,cdh = None):
     credential_data = AttestedCredentialData(reg.auth_data.credential_data)
-    cdh = auth.request.cdh
+    if cdh is None: cdh = auth.request.cdh
     auth.verify(cdh, credential_data.public_key)
     assert (
         auth.credential["id"] == reg.auth_data.credential_data.credential_id
@@ -14,11 +20,20 @@ def generate_rp():
     return {"id": "example.org", "name": "ExampleRP"}
 
 def generate_user():
-    return {"id": b"user_id", "name": "A User"}
+
+    # https://www.w3.org/TR/webauthn/#user-handle
+    user_id_length = random.randint(1,64)
+    user_id = secrets.token_bytes(user_id_length)
+
+    # https://www.w3.org/TR/webauthn/#dictionary-pkcredentialentity
+    name = ' '.join(random.choice(name_list).strip() for i in range(0,3))
+    icon = 'https://www.w3.org/TR/webauthn/'
+    display_name = "Displayed " + name
+
+    return {"id": user_id, "name": name, 'icon': icon, 'displayName': display_name}
 
 def generate_challenge():
-    return "Y2hhbGxlbmdl"
-    return sha256("Y2hhbGxlbmdl".encode("utf8"))
+    return secrets.token_bytes(32)
 
 def get_key_params():
     return [{"type": "public-key", "alg": ES256.ALGORITHM}]
@@ -62,7 +77,7 @@ class FidoRequest():
             if hasattr(self.rp["id"], 'encode'):
                 self.appid = sha256(self.rp["id"].encode("utf8"))
 
-        self.chal = sha256(self.challenge.encode("utf8"))
+        #self.chal = sha256(self.challenge.encode("utf8"))
 
     def save_attr(self,attr,value,request):
         """
