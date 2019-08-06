@@ -2,3 +2,4 @@ fido2
 solo-python
 pytest
 pytest-ordering
+solo-python
