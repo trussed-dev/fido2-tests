@@ -290,7 +290,7 @@ class TestDevice:
         return self.ctap2.client_pin(*args, **kwargs)
 
     def sendPP(self, *args, **kwargs):
-        return self.client.pin_protocol.get_pin_token(test, *args, **kwargs)
+        return self.client.pin_protocol.get_pin_token(*args, **kwargs)
 
 
     def delay(secs):
