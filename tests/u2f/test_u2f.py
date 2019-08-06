@@ -39,7 +39,7 @@ class TestU2F(object):
 
         regs = []
 
-        for i in range(0, 5):
+        for i in range(0, iterations):
             print("U2F reg + auth %d/%d (count: %02x)" % (i + 1, iterations, lastc))
             reg = device.register(chal, appid)
             reg.verify(appid, chal)
@@ -55,18 +55,18 @@ class TestU2F(object):
                 print("WARNING: counter is unusually high: %04x" % lastc)
                 assert 0
 
-        for i in range(0, 5):
+        for i in range(0, iterations):
             auth = device.authenticate(chal, appid, regs[i].key_handle)
             auth.verify(appid, chal, regs[i].public_key)
 
         device.reboot()
 
-        for i in range(0, 5):
+        for i in range(0, iterations):
             auth = device.authenticate(chal, appid, regs[i].key_handle)
             auth.verify(appid, chal, regs[i].public_key)
 
         print("Check that all previous credentials are registered...")
-        for i in range(0, 5):
+        for i in range(0, iterations):
             with pytest.raises(ApduError) as e:
                 auth = device.ctap1.authenticate(
                     chal, appid, regs[i].key_handle, check_only=True
