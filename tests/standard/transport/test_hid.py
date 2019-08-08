@@ -6,11 +6,8 @@ from fido2.hid import CTAPHID
 from fido2.ctap import CtapError
 
 
-
-
 class TestHID(object):
-
-    def test_long_ping(self,device):
+    def test_long_ping(self, device):
         amt = 1000
         pingdata = os.urandom(amt)
 
@@ -19,10 +16,9 @@ class TestHID(object):
         t2 = time.time() * 1000
         delt = t2 - t1
 
-        assert not ( delt > 555 * (amt / 1000) )
+        assert not (delt > 555 * (amt / 1000))
 
         assert r == pingdata
-
 
     def test_init(self, device, check_timeouts=False):
         if check_timeouts:
@@ -32,7 +28,7 @@ class TestHID(object):
         payload = b"\x11\x11\x11\x11\x11\x11\x11\x11"
         r = device.send_data(CTAPHID.INIT, payload)
         print(r)
-        assert(r[:8] == payload)
+        assert r[:8] == payload
 
     def test_ping(self, device):
 
@@ -64,7 +60,7 @@ class TestHID(object):
     def test_oversize_packet(self, device):
         device.send_raw("\x81\x1d\xba\x00")
         cmd, resp = device.recv_raw()
-        assert(resp[0] == CtapError.ERR.INVALID_LENGTH)
+        assert resp[0] == CtapError.ERR.INVALID_LENGTH
 
     def test_skip_sequence_number(self, device):
         r = device.send_data(CTAPHID.PING, "\x44" * 200)
@@ -74,7 +70,7 @@ class TestHID(object):
         # skip 2
         device.send_raw("\x03")
         cmd, resp = device.recv_raw()
-        assert(resp[0] == CtapError.ERR.INVALID_SEQ)
+        assert resp[0] == CtapError.ERR.INVALID_SEQ
 
     def test_resync_and_ping(self, device):
         r = device.send_data(CTAPHID.INIT, "\x11\x22\x33\x44\x55\x66\x77\x88")
@@ -121,7 +117,7 @@ class TestHID(object):
         assert r[0] == CtapError.ERR.TIMEOUT
         assert delt < 1000 and delt > 400
 
-    def test_not_cont(self, device,check_timeouts=False):
+    def test_not_cont(self, device, check_timeouts=False):
         device.send_data(CTAPHID.INIT, "\x11\x22\x33\x44\x55\x66\x77\x88")
         device.send_raw("\x81\x04\x00")
         device.send_raw("\x00")
@@ -137,7 +133,7 @@ class TestHID(object):
             with pytest.raises(socket.timeout):
                 cmd, r = device.recv_raw()  # timeout response
 
-    def test_check_busy(self, device,):
+    def test_check_busy(self, device):
         t1 = time.time() * 1000
         device.send_data(CTAPHID.INIT, "\x11\x22\x33\x44\x55\x66\x77\x88")
         oldcid = device.cid()
@@ -156,7 +152,7 @@ class TestHID(object):
         assert cmd == 0xBF
         assert r[0] == CtapError.ERR.TIMEOUT
 
-    def test_check_busy_interleaved(self, device,):
+    def test_check_busy_interleaved(self, device):
         cid1 = "\x11\x22\x33\x44"
         cid2 = "\x01\x22\x33\x44"
         device.set_cid(cid2)
@@ -185,7 +181,7 @@ class TestHID(object):
         assert cmd == 0x81
         assert len(r) == 0x63
 
-    def test_cid_0(self, device,):
+    def test_cid_0(self, device):
         device.set_cid("\x00\x00\x00\x00")
         device.send_raw(
             "\x86\x00\x08\x11\x22\x33\x44\x55\x66\x77\x88", cid="\x00\x00\x00\x00"
@@ -195,7 +191,7 @@ class TestHID(object):
         assert r[0] == CtapError.ERR.INVALID_CHANNEL
         device.set_cid("\x05\x04\x03\x02")
 
-    def test_cid_ffffffff(self, device,):
+    def test_cid_ffffffff(self, device):
 
         device.set_cid("\xff\xff\xff\xff")
         device.send_raw(

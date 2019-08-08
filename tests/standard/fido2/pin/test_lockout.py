@@ -6,12 +6,12 @@ from fido2.ctap2 import ES256, PinProtocolV1, AttestedCredentialData
 from tests.utils import *
 
 
-def test_lockout(device,resetDevice):
-    pin = 'TestPin'
+def test_lockout(device, resetDevice):
+    pin = "TestPin"
     device.client.pin_protocol.set_pin(pin)
 
     pin_token = device.client.pin_protocol.get_pin_token(pin)
-    req = FidoRequest(pin_token = pin_token)
+    req = FidoRequest(pin_token=pin_token)
 
     req.pin_auth = hmac_sha256(pin_token, req.cdh)[:16]
 
@@ -23,9 +23,7 @@ def test_lockout(device,resetDevice):
             err = [CtapError.ERR.PIN_BLOCKED, CtapError.ERR.PIN_INVALID]
 
         with pytest.raises(CtapError) as e:
-            device.sendPP(
-                "WrongPin",
-            )
+            device.sendPP("WrongPin")
         assert e.value.code == err or e.value.code in err
 
         attempts = 8 - i
@@ -46,4 +44,3 @@ def test_lockout(device,resetDevice):
     with pytest.raises(CtapError) as e:
         device.sendPP(pin)
     assert e.value.code == CtapError.ERR.PIN_BLOCKED
-

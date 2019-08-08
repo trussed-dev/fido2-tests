@@ -4,6 +4,7 @@ from fido2.ctap import CtapError
 
 from tests.utils import *
 
+
 def test_credential_resets(device, MCRes, GARes):
     verify(MCRes, GARes)
     device.reset()
