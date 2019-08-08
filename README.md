@@ -32,3 +32,15 @@ To run tests against a "simulation" build of the Solo authenticator, supply the 
 pytest --sim tests/standard
 ```
 
+# Contributing
+
+We use `black` to prevent code formatting discussions.
+
+The `make venv` setup method installs git pre-commit hooks that check conformance automatically.
+
+You can also `make check` and `make fix` manually, or use an editor plugin.
+
+# License
+
+Apache-2.0 OR MIT
+
