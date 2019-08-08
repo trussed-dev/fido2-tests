@@ -1,5 +1,5 @@
-fido2
-solo-python
+fido2 >=0.7.0
+pyscard
 pytest
 pytest-ordering
-solo-python
+solo-python >=0.0.12
