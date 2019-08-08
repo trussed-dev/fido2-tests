@@ -6,7 +6,7 @@ VALID=$(shell python -c "print($(PY_VERSION) >= 3.6)")
 ifeq ($(OS),Windows_NT)
 	BIN=venv/Scripts
 else
-	BIN=$(BIN)
+	BIN=venv/bin
 endif
 
 ifeq (True,$(VALID))
@@ -24,14 +24,14 @@ vendor-tests: venv
 # setup development environment
 venv:
 	$(PYTHON) -m venv venv
-	$(BIN)/pip install --user -U pip
+	$(BIN)/pip install -U pip
 	$(BIN)/pip install -U -r requirements.txt
 	$(BIN)/pip install -U -r dev-requirements.txt
-	$(BIN)/precommit install
+	$(BIN)/pre-commit install
 
 # re-run if  dependencies change
 update:
-	$(BIN)/pip install --user -U pip
+	$(BIN)/pip install -U pip
 	$(BIN)/pip install -U -r requirements.txt
 	$(BIN)/pip install -U -r dev-requirements.txt
 
