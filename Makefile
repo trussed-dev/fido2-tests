@@ -1,32 +1,47 @@
 .PHONY: standard-tests vendor-tests
 
+PY_VERSION=$(shell python -c "import sys; print('%d.%d'% sys.version_info[0:2])")
+VALID=$(shell python -c "print($(PY_VERSION) >= 3.6)")
+
+ifeq ($(OS),Windows_NT)
+	BIN=venv/Scripts
+else
+	BIN=$(BIN)
+endif
+
+ifeq (True,$(VALID))
+	PYTHON=python
+else
+	PYTHON=python3
+endif
+
 standard-tests: venv
-	venv/bin/pytest tests/standard
+	$(BIN)/pytest tests/standard
 
 vendor-tests: venv
-	venv/bin/pytest tests/vendor
+	$(BIN)/pytest tests/vendor
 
 # setup development environment
 venv:
-	python3 -m venv venv
-	venv/bin/pip install -U pip
-	venv/bin/pip install -U -r requirements.txt
-	venv/bin/pip install -U -r dev-requirements.txt
-	venv/bin/precommit install
+	$(PYTHON) -m venv venv
+	$(BIN)/pip install --user -U pip
+	$(BIN)/pip install -U -r requirements.txt
+	$(BIN)/pip install -U -r dev-requirements.txt
+	$(BIN)/precommit install
 
 # re-run if  dependencies change
 update:
-	venv/bin/pip install -U pip
-	venv/bin/pip install -U -r requirements.txt
-	venv/bin/pip install -U -r dev-requirements.txt
+	$(BIN)/pip install --user -U pip
+	$(BIN)/pip install -U -r requirements.txt
+	$(BIN)/pip install -U -r dev-requirements.txt
 
 # ensure this passes before commiting
 check:
-	venv/bin/black --check tests/
+	$(BIN)/black --check tests/
 
 # automatic code fixes
 fix: black
 
 black:
-	venv/bin/black tests/
+	$(BIN)/black tests/
 
