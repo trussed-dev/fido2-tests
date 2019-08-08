@@ -2,27 +2,26 @@
 
 Test suite for FIDO2, U2F, and other security key functions
 
-# Installation
+# Setup
 
 Need python 3.6+.
 
+`make venv` and `source venv/bin/activate`
 
-```
-pip3 install -r requirements.txt
-```
+Or simply `pip3 install --user -r requirements.txt`
 
 # Running the tests
 
-Run all FIDO2, U2F, and HID tests.
+Run all FIDO2, U2F, and HID tests:
 
 ```
-python -m pytest tests/standard
+pytest tests/standard
 ```
 
-Run vendor/model specific tests.
+Run vendor/model specific tests:
 
 ```
-python -m pytest tests/vendor
+pytest tests/vendor
 ```
 
 # Running against simulation
@@ -30,7 +29,6 @@ python -m pytest tests/vendor
 To run tests against a "simulation" build of the Solo authenticator, supply the `--sim` option.
 
 ```
-python -m pytest tests/standard --sim
+pytest --sim tests/standard
 ```
-
 
