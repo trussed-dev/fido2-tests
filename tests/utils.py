@@ -1,11 +1,23 @@
 import secrets
 import random
+import math
 
 from fido2.ctap2 import ES256, PinProtocolV1, AttestedCredentialData
 from fido2.utils import sha256, hmac_sha256
 
 
 name_list = open("data/first-names.txt").readlines()
+
+
+def shannon_entropy(data):
+    s = 0.0
+    total = len(data)
+    for x in range(0, 256):
+        freq = data.count(x)
+        p = freq / total
+        if p > 0:
+            s -= p * math.log2(p)
+    return s
 
 
 def verify(reg, auth, cdh=None):
@@ -98,7 +110,7 @@ class FidoRequest:
 
     def save_attr(self, attr, value, request):
         """
-            Will assign attribute from source, in following priority: 
+            Will assign attribute from source, in following priority:
                 Argument, request object, generated
         """
         if value != Empty:

@@ -12,16 +12,7 @@ from fido2.utils import sha256
 from fido2.hid import CTAPHID
 from fido2.ctap import CtapError
 
-
-def shannon_entropy(data):
-    s = 0.0
-    total = len(data)
-    for x in range(0, 256):
-        freq = data.count(x)
-        p = freq / total
-        if p > 0:
-            s -= p * math.log2(p)
-    return s
+from tests.utils import shannon_entropy
 
 
 @pytest.fixture(scope="module", params=["u2f"])
