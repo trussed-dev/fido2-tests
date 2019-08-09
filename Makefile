@@ -24,14 +24,14 @@ vendor-tests: venv
 # setup development environment
 venv:
 	$(PYTHON) -m venv venv
-	$(BIN)/pip install -U pip
+	$(BIN)/python -m pip install -U pip
 	$(BIN)/pip install -U -r requirements.txt
 	$(BIN)/pip install -U -r dev-requirements.txt
 	$(BIN)/pre-commit install
 
 # re-run if  dependencies change
 update:
-	$(BIN)/pip install -U pip
+	$(BIN)/python -m pip install -U pip
 	$(BIN)/pip install -U -r requirements.txt
 	$(BIN)/pip install -U -r dev-requirements.txt
 
@@ -44,4 +44,3 @@ fix: black
 
 black:
 	$(BIN)/black tests/
-
