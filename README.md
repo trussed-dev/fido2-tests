@@ -24,6 +24,11 @@ Run vendor/model specific tests:
 pytest tests/vendor
 ```
 
+Run subset of tests with `-k` flag, example:
+```
+pytest -k "getinfo or hmac_secret"
+```
+
 # Running against simulation
 
 To run tests against a "simulation" build of the Solo authenticator, supply the `--sim` option.
