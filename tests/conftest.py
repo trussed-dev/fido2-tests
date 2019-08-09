@@ -32,58 +32,55 @@ def is_simulation(pytestconfig):
 def is_nfc(pytestconfig):
     return pytestconfig.getoption("nfc")
 
+
 @pytest.fixture(scope="module")
 def info(device):
     info = device.ctap2.get_info()
-    #print("data:", bytes(info))
-    #print("decoded:", cbor.decode_from(bytes(info)))
+    # print("data:", bytes(info))
+    # print("decoded:", cbor.decode_from(bytes(info)))
     return info
+
 
 @pytest.fixture(scope="module")
 def MCRes(resetDevice,):
     req = FidoRequest()
-    res = resetDevice.sendMC(
-        *req.toMC(),
-    )
-    setattr(res,'request',req)
+    res = resetDevice.sendMC(*req.toMC())
+    setattr(res, "request", req)
     return res
 
-@pytest.fixture(scope='class')
-def GARes(device,MCRes):
-    req = FidoRequest(allow_list = [{
-        "id": MCRes.auth_data.credential_data.credential_id,
-        "type": "public-key",
-        }])
-    res = device.sendGA(
-        *req.toGA(),
+
+@pytest.fixture(scope="class")
+def GARes(device, MCRes):
+    req = FidoRequest(
+        allow_list=[
+            {"id": MCRes.auth_data.credential_data.credential_id, "type": "public-key"}
+        ]
     )
-    setattr(res,'request',req)
+    res = device.sendGA(*req.toGA())
+    setattr(res, "request", req)
     return res
 
 
 @pytest.fixture(scope="module")
 def RegRes(resetDevice,):
     req = FidoRequest()
-    res = resetDevice.register(
-            req.challenge, req.appid
-    )
-    setattr(res,'request',req)
+    res = resetDevice.register(req.challenge, req.appid)
+    setattr(res, "request", req)
     return res
 
-@pytest.fixture(scope='class')
+
+@pytest.fixture(scope="class")
 def AuthRes(device, RegRes):
     req = FidoRequest()
-    res = device.authenticate(
-        req.challenge, req.appid, RegRes.key_handle
-    )
-    setattr(res,'request',req)
+    res = device.authenticate(req.challenge, req.appid, RegRes.key_handle)
+    setattr(res, "request", req)
     return res
 
 
-
-@pytest.fixture(scope='module')
+@pytest.fixture(scope="module")
 def allowListItem(MCRes):
-    return 
+    return
+
 
 @pytest.fixture(scope="session")
 def device(pytestconfig):
@@ -98,15 +95,18 @@ def device(pytestconfig):
 
     return dev
 
-@pytest.fixture(scope='class')
+
+@pytest.fixture(scope="class")
 def rebootedDevice(device):
     device.reboot()
     return device
 
-@pytest.fixture(scope='module')
+
+@pytest.fixture(scope="module")
 def resetDevice(device):
     device.reset()
     return device
+
 
 class Packet(object):
     def __init__(self, data):
@@ -118,7 +118,6 @@ class Packet(object):
     @staticmethod
     def FromWireFormat(pkt_size, data):
         return Packet(data)
-
 
 
 class TestDevice:
@@ -270,9 +269,7 @@ class TestDevice:
             self.ctap2.reset()
 
     def sendMC(self, *args, **kwargs):
-        attestation_object = self.ctap2.make_credential(
-            *args, **kwargs
-        )
+        attestation_object = self.ctap2.make_credential(*args, **kwargs)
         if attestation_object:
             verifier = Attestation.for_type(attestation_object.fmt)
             client_data = args[0]
@@ -291,7 +288,6 @@ class TestDevice:
 
     def sendPP(self, *args, **kwargs):
         return self.client.pin_protocol.get_pin_token(*args, **kwargs)
-
 
     def delay(secs):
         time.sleep(secs)

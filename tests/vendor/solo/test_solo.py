@@ -12,31 +12,25 @@ from fido2.utils import sha256
 from fido2.hid import CTAPHID
 from fido2.ctap import CtapError
 
-def shannon_entropy(data):
-    s = 0.0
-    total = len(data)
-    for x in range(0, 256):
-        freq = data.count(x)
-        p = freq / total
-        if p > 0:
-            s -= p * math.log2(p)
-    return s
+from tests.utils import shannon_entropy
 
-@pytest.fixture(scope="module", params = ['u2f'])
-def solo(request,device):
-        sc = SoloClient()
-        sc.find_device(device.dev)
-        if request.param == 'u2f':
-            sc.use_u2f()
-        else:
-            sc.use_hid()
-        return sc
+
+@pytest.fixture(scope="module", params=["u2f"])
+def solo(request, device):
+    sc = SoloClient()
+    sc.find_device(device.dev)
+    if request.param == "u2f":
+        sc.use_u2f()
+    else:
+        sc.use_hid()
+    return sc
+
 
 class TestSolo(object):
-    def test_solo(self,solo):
+    def test_solo(self, solo):
         pass
 
-    def test_rng(self,solo):
+    def test_rng(self, solo):
 
         total = 1024 * 16
         entropy = b""
@@ -47,14 +41,14 @@ class TestSolo(object):
         assert s > 7.98
         print("Entropy is %.5f bits per byte." % s)
 
-    def test_version(self,solo):
+    def test_version(self, solo):
         assert len(solo.solo_version()) == 3
 
-    def test_bootloader_not(self,solo):
+    def test_bootloader_not(self, solo):
         with pytest.raises(ApduError) as e:
             solo.write_flash(0x0, b"1234")
 
-    def test_fido2_bridge(self,solo):
+    def test_fido2_bridge(self, solo):
         exchange = solo.exchange
         solo.exchange = solo.exchange_fido2
 
@@ -72,24 +66,23 @@ class TestSolo(object):
 
         solo.exchange = exchange
 
+    # def test_bootloader(self,):
+    # solo = SoloClient()
+    # solo.find_device(self.dev)
+    # solo.use_u2f()
 
-    #def test_bootloader(self,):
-        #solo = SoloClient()
-        #solo.find_device(self.dev)
-        #solo.use_u2f()
+    # memmap = (0x08005000, 0x08005000 + 198 * 1024 - 8)
+    # data = b"A" * 64
 
-        #memmap = (0x08005000, 0x08005000 + 198 * 1024 - 8)
-        #data = b"A" * 64
+    # with Test("Test version command"):
+    # assert len(solo.bootloader_version()) == 3
 
-        #with Test("Test version command"):
-            #assert len(solo.bootloader_version()) == 3
+    # with Test("Test write command"):
+    # solo.write_flash(memmap[0], data)
 
-        #with Test("Test write command"):
-            #solo.write_flash(memmap[0], data)
-
-        #for addr in (memmap[0] - 8, memmap[0] - 4, memmap[1], memmap[1] - 8):
-            #with Test("Test out of bounds write command at 0x%04x" % addr):
-                #try:
-                    #solo.write_flash(addr, data)
-                #except CtapError as e:
-                    #assert e.code == CtapError.ERR.NOT_ALLOWED
+    # for addr in (memmap[0] - 8, memmap[0] - 4, memmap[1], memmap[1] - 8):
+    # with Test("Test out of bounds write command at 0x%04x" % addr):
+    # try:
+    # solo.write_flash(addr, data)
+    # except CtapError as e:
+    # assert e.code == CtapError.ERR.NOT_ALLOWED

@@ -6,27 +6,33 @@ from tests.utils import verify, FidoRequest
 
 
 class TestU2F(object):
-    def test_u2f_reg(self,device,RegRes):
+    def test_u2f_reg(self, device, RegRes):
         RegRes.verify(RegRes.request.appid, RegRes.request.challenge)
 
-    def test_u2f_auth(self,device,RegRes,AuthRes):
-        AuthRes.verify(AuthRes.request.appid, AuthRes.request.challenge, RegRes.public_key)
+    def test_u2f_auth(self, device, RegRes, AuthRes):
+        AuthRes.verify(
+            AuthRes.request.appid, AuthRes.request.challenge, RegRes.public_key
+        )
 
-    def test_u2f_auth_check_only(self,device,RegRes,):
+    def test_u2f_auth_check_only(self, device, RegRes):
         with pytest.raises(ApduError) as e:
-            device.ctap1.authenticate(RegRes.request.challenge, RegRes.request.appid, RegRes.key_handle, check_only = True)
+            device.ctap1.authenticate(
+                RegRes.request.challenge,
+                RegRes.request.appid,
+                RegRes.key_handle,
+                check_only=True,
+            )
         assert e.value.code == APDU.USE_NOT_SATISFIED
 
-
-    def test_version(self,device,):
+    def test_version(self, device):
         assert device.ctap1.get_version() == "U2F_V2"
 
-    def test_bad_ins(self,device,):
+    def test_bad_ins(self, device):
         with pytest.raises(ApduError) as e:
             device.ctap1.send_apdu(0, 0, 0, 0, b"")
         assert e.value.code == 0x6D00
 
-    def test_bad_cla(self,device):
+    def test_bad_cla(self, device):
         with pytest.raises(ApduError) as e:
             device.ctap1.send_apdu(1, CTAP1.INS.VERSION, 0, 0, b"abc")
         assert e.value.code == 0x6E00
@@ -74,29 +80,36 @@ class TestU2F(object):
             assert e.value.code == APDU.USE_NOT_SATISFIED
 
     def test_bad_key_handle(self, device, RegRes):
-            kh = bytearray(RegRes.key_handle)
-            kh[0] = kh[0] ^ (0x40)
+        kh = bytearray(RegRes.key_handle)
+        kh[0] = kh[0] ^ (0x40)
 
-            with pytest.raises(ApduError) as e:
-                device.ctap1.authenticate(RegRes.request.challenge, RegRes.request.appid, kh, check_only=True)
-            assert e.value.code == APDU.WRONG_DATA
+        with pytest.raises(ApduError) as e:
+            device.ctap1.authenticate(
+                RegRes.request.challenge, RegRes.request.appid, kh, check_only=True
+            )
+        assert e.value.code == APDU.WRONG_DATA
 
-            with pytest.raises(ApduError) as e:
-                device.ctap1.authenticate(RegRes.request.challenge, RegRes.request.appid, kh, )
-            assert e.value.code == APDU.WRONG_DATA
+        with pytest.raises(ApduError) as e:
+            device.ctap1.authenticate(
+                RegRes.request.challenge, RegRes.request.appid, kh
+            )
+        assert e.value.code == APDU.WRONG_DATA
 
     def test_bad_key_handle_length(self, device, RegRes):
-            kh = bytearray(RegRes.key_handle)
+        kh = bytearray(RegRes.key_handle)
 
-            with pytest.raises(ApduError) as e:
-                device.ctap1.authenticate(RegRes.request.challenge, RegRes.request.appid, kh[: len(kh) // 2])
-            assert e.value.code == APDU.WRONG_DATA
-
+        with pytest.raises(ApduError) as e:
+            device.ctap1.authenticate(
+                RegRes.request.challenge, RegRes.request.appid, kh[: len(kh) // 2]
+            )
+        assert e.value.code == APDU.WRONG_DATA
 
     def test_incorrect_appid(self, device, RegRes):
 
         badid = bytearray(RegRes.request.appid)
         badid[0] = badid[0] ^ (0x40)
         with pytest.raises(ApduError) as e:
-            auth = device.ctap1.authenticate(RegRes.request.challenge, badid, RegRes.key_handle)
+            auth = device.ctap1.authenticate(
+                RegRes.request.challenge, badid, RegRes.key_handle
+            )
         assert e.value.code == APDU.WRONG_DATA
