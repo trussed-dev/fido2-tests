@@ -175,8 +175,10 @@ class TestDevice:
             print("Sending restart command...")
             self.send_magic_reboot()
             TestDevice.delay(0.25)
+        elif self.nfc_interface_only:
+            print("nfc")
         else:
-            print("Please reboot authentictor and hit enter")
+            print("Please reboot authenticator and hit enter")
             input()
             self.find_device(self.nfc_interface_only)
 
