@@ -37,6 +37,15 @@ To run tests against a "simulation" build of the Solo authenticator, supply the 
 pytest --sim tests/standard
 ```
 
+# Running via nfc channel
+
+To run tests via nfc, supply the `--nfc` option.
+Make sure that you have `pyscard` python module installed properly and have updated `python-fido2` (by Yubikey) library to lastest version
+
+```
+pytest --nfc tests/standard
+```
+
 # Contributing
 
 We use `black` to prevent code formatting discussions.
