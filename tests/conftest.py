@@ -177,6 +177,7 @@ class TestDevice:
             TestDevice.delay(0.25)
         elif self.nfc_interface_only:
             print("nfc")
+            #TODO add magic nfc command to reboot device
         else:
             print("Please reboot authenticator and hit enter")
             input()
