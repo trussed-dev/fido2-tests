@@ -44,3 +44,6 @@ fix: black
 
 black:
 	$(BIN)/black tests/
+
+isort:
+	$(BIN)/isort -y --recursive tests/

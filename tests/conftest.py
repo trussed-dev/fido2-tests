@@ -1,18 +1,14 @@
-import pytest
-
-import time
 import struct
+import time
 
-from fido2.hid import CtapHidDevice
-from fido2.client import Fido2Client
+import pytest
 from fido2.attestation import Attestation
-from fido2.ctap1 import CTAP1
-from fido2.utils import Timeout
+from fido2.client import Fido2Client, _call_polling
 from fido2.ctap import CtapError
-from fido2.ctap2 import ES256, PinProtocolV1, AttestedCredentialData
-from fido2.utils import sha256, hmac_sha256
-from fido2.client import _call_polling
-
+from fido2.ctap1 import CTAP1
+from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
+from fido2.hid import CtapHidDevice
+from fido2.utils import Timeout, hmac_sha256, sha256
 from solo.fido2 import force_udp_backend
 
 from tests.utils import *

@@ -1,9 +1,12 @@
-import sys, os, time, socket
-import pytest
+import os
+import socket
+import sys
+import time
 from binascii import hexlify
 
-from fido2.hid import CTAPHID
+import pytest
 from fido2.ctap import CtapError
+from fido2.hid import CTAPHID
 
 
 class TestHID(object):

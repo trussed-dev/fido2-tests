@@ -1,11 +1,10 @@
 import pytest
-
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from fido2.utils import sha256, hmac_sha256
 from fido2.ctap import CtapError
+from fido2.utils import hmac_sha256, sha256
 
-from tests.utils import FidoRequest, verify, shannon_entropy
+from tests.utils import FidoRequest, shannon_entropy, verify
 
 
 def get_salt_params(cipher, shared_secret, salts):

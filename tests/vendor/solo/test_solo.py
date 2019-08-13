@@ -2,15 +2,12 @@ import math
 from binascii import hexlify
 
 import pytest
-
+from fido2.ctap import CtapError
+from fido2.ctap1 import ApduError
+from fido2.hid import CTAPHID
+from fido2.utils import sha256
 from solo.client import SoloClient
 from solo.commands import SoloExtension
-
-from fido2.ctap1 import ApduError
-from fido2.utils import sha256
-
-from fido2.hid import CTAPHID
-from fido2.ctap import CtapError
 
 from tests.utils import shannon_entropy
 

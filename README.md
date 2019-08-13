@@ -45,6 +45,8 @@ The `make venv` setup method installs git pre-commit hooks that check conformanc
 
 You can also `make check` and `make fix` manually, or use an editor plugin.
 
+Additionally, please run `make isort` before committing.
+
 # License
 
 Apache-2.0 OR MIT
