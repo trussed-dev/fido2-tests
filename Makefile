@@ -38,9 +38,10 @@ update:
 # ensure this passes before commiting
 check:
 	$(BIN)/black --check tests/
+	$(BIN)/isort --check-only --recursive tests/
 
 # automatic code fixes
-fix: black
+fix: black isort
 
 black:
 	$(BIN)/black tests/

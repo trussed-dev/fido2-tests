@@ -39,13 +39,11 @@ pytest --sim tests/standard
 
 # Contributing
 
-We use `black` to prevent code formatting discussions.
+We use `black` and `isort` to prevent code formatting discussions.
 
 The `make venv` setup method installs git pre-commit hooks that check conformance automatically.
 
-You can also `make check` and `make fix` manually, or use an editor plugin.
-
-Additionally, please run `make isort` before committing.
+You can also `make check` and `make fix` manually, or use an editor plugins.
 
 # License
 
