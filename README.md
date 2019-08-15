@@ -15,19 +15,21 @@ Or simply `pip3 install --user -r requirements.txt`
 Run all FIDO2, U2F, and HID tests:
 
 ```
-pytest tests/standard
+pytest tests/standard -s
 ```
 
 Run vendor/model specific tests:
 
 ```
-pytest tests/vendor
+pytest tests/vendor -s
 ```
 
 Run subset of tests with `-k` flag, example:
 ```
-pytest -k "getinfo or hmac_secret"
+pytest -k "getinfo or hmac_secret" -s
 ```
+
+Note that in most cases when testing a hardware authenticator, `-s` must be supplied to disable stdin/stdout capturing.  This is so the prompts to power cycle the authenticator can be seen and continued.
 
 # Running against simulation
 
@@ -36,6 +38,8 @@ To run tests against a "simulation" build of the Solo authenticator, supply the 
 ```
 pytest --sim tests/standard
 ```
+
+All tests should pass with having to use `-s` or provide any interaction.
 
 # Contributing
 
