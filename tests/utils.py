@@ -98,6 +98,7 @@ class FidoRequest:
             "exclude_list",
             "extensions",
             "pin_auth",
+            "timeout",
         ):
             self.save_attr(i, kwargs.get(i, Empty), request)
 
@@ -128,6 +129,7 @@ class FidoRequest:
             self.options,
             self.pin_auth,
             self.pin_protocol,
+            self.timeout,
         ]
 
     def toMC(self,):
@@ -141,6 +143,7 @@ class FidoRequest:
             self.options,
             self.pin_auth,
             self.pin_protocol,
+            self.timeout,
         ]
 
         return args + self.get_optional_args()
