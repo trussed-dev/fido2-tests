@@ -8,7 +8,10 @@ import pytest
 from fido2.ctap import CtapError
 from fido2.hid import CTAPHID
 
-
+@pytest.mark.skipif(
+    '--nfc' in sys.argv,
+    reason="Wrong transport"
+)
 class TestHID(object):
     def test_long_ping(self, device):
         amt = 1000
