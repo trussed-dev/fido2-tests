@@ -122,6 +122,7 @@ class TestDevice:
         self.host = "examplo.org"
         self.user_count = 10
         self.is_sim = False
+        self.is_nfc = False
         self.nfc_interface_only = False
         if tester:
             self.initFrom(tester)
@@ -129,6 +130,7 @@ class TestDevice:
     def initFrom(self, tester):
         self.user_count = tester.user_count
         self.is_sim = tester.is_sim
+        self.is_nfc = tester.is_nfc
         self.dev = tester.dev
         self.ctap2 = tester.ctap2
         self.ctap1 = tester.ctap1
@@ -149,6 +151,8 @@ class TestDevice:
             print("--- NFC ---")
             print(list(CtapPcscDevice.list_devices()))
             dev = next(CtapPcscDevice.list_devices(), None)
+            if dev:
+                self.is_nfc = True
 
         if not dev:
             raise RuntimeError("No FIDO device found")
@@ -171,8 +175,11 @@ class TestDevice:
             print("Sending restart command...")
             self.send_magic_reboot()
             TestDevice.delay(0.25)
+        elif self.is_nfc:
+            print("nfc")
+            #TODO add magic nfc command to reboot device
         else:
-            print("Please reboot authentictor and hit enter")
+            print("Please reboot authenticator and hit enter")
             input()
             self.find_device(self.nfc_interface_only)
 
