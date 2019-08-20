@@ -29,6 +29,13 @@ Run subset of tests with `-k` flag, example:
 pytest -k "getinfo or hmac_secret" -s
 ```
 
+To run tests via nfc, supply the `--nfc` option.
+Make sure that you have `pyscard` python module installed properly and have updated `python-fido2` (by Yubikey) library to lastest version
+
+```
+pytest --nfc tests/standard -s
+```
+
 Note that in most cases when testing a hardware authenticator, `-s` must be supplied to disable stdin/stdout capturing.  This is so the prompts to power cycle the authenticator can be seen and continued.
 
 # Running against simulation
@@ -40,14 +47,9 @@ pytest --sim tests/standard
 ```
 
 
-To run tests via nfc, supply the `--nfc` option.
-Make sure that you have `pyscard` python module installed properly and have updated `python-fido2` (by Yubikey) library to lastest version
 
-```
-pytest --nfc tests/standard -s
-```
 
-All tests should pass with having to use `-s` or provide any interaction.
+All tests should pass without having to use `-s` or provide any interaction.
 
 
 # Contributing
