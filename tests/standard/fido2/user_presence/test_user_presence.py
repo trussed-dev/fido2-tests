@@ -8,7 +8,8 @@ from tests.utils import *
 
 
 @pytest.mark.skipif(
-    "--sim" in sys.argv, reason="Simulation doesn't care about user presence"
+    "--sim" in sys.argv or '--nfc' in sys.argv,
+    reason="Simulation doesn't care about user presence"
 )
 class TestUserPresence(object):
     @pytest.mark.run(order=1)
