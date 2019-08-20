@@ -1,5 +1,4 @@
 import pytest
-
 from fido2 import cbor
 from fido2.ctap import CtapError
 

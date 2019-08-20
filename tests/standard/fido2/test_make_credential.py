@@ -1,8 +1,7 @@
 import pytest
-
 from fido2.ctap import CtapError
-from fido2.utils import sha256, hmac_sha256
-from fido2.ctap2 import ES256, PinProtocolV1, AttestedCredentialData
+from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
+from fido2.utils import hmac_sha256, sha256
 
 from tests.utils import FidoRequest
 

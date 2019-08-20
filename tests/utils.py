@@ -1,10 +1,9 @@
-import secrets
-import random
 import math
+import random
+import secrets
 
-from fido2.ctap2 import ES256, PinProtocolV1, AttestedCredentialData
-from fido2.utils import sha256, hmac_sha256
-
+from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
+from fido2.utils import hmac_sha256, sha256
 
 name_list = open("data/first-names.txt").readlines()
 
@@ -99,6 +98,7 @@ class FidoRequest:
             "exclude_list",
             "extensions",
             "pin_auth",
+            "timeout",
         ):
             self.save_attr(i, kwargs.get(i, Empty), request)
 
@@ -129,6 +129,7 @@ class FidoRequest:
             self.options,
             self.pin_auth,
             self.pin_protocol,
+            self.timeout,
         ]
 
     def toMC(self,):
@@ -142,6 +143,7 @@ class FidoRequest:
             self.options,
             self.pin_auth,
             self.pin_protocol,
+            self.timeout,
         ]
 
         return args + self.get_optional_args()

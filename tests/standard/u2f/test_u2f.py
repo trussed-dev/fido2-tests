@@ -1,8 +1,8 @@
 import pytest
-from fido2.ctap1 import CTAP1, ApduError, APDU
+from fido2.ctap1 import APDU, CTAP1, ApduError
 from fido2.utils import sha256
 
-from tests.utils import verify, FidoRequest
+from tests.utils import FidoRequest, verify
 
 
 class TestU2F(object):

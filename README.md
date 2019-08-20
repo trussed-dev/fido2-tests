@@ -15,19 +15,21 @@ Or simply `pip3 install --user -r requirements.txt`
 Run all FIDO2, U2F, and HID tests:
 
 ```
-pytest tests/standard
+pytest tests/standard -s
 ```
 
 Run vendor/model specific tests:
 
 ```
-pytest tests/vendor
+pytest tests/vendor -s
 ```
 
 Run subset of tests with `-k` flag, example:
 ```
-pytest -k "getinfo or hmac_secret"
+pytest -k "getinfo or hmac_secret" -s
 ```
+
+Note that in most cases when testing a hardware authenticator, `-s` must be supplied to disable stdin/stdout capturing.  This is so the prompts to power cycle the authenticator can be seen and continued.
 
 # Running against simulation
 
@@ -37,22 +39,24 @@ To run tests against a "simulation" build of the Solo authenticator, supply the 
 pytest --sim tests/standard
 ```
 
-# Running via nfc channel
 
 To run tests via nfc, supply the `--nfc` option.
 Make sure that you have `pyscard` python module installed properly and have updated `python-fido2` (by Yubikey) library to lastest version
 
 ```
-pytest --nfc tests/standard
+pytest --nfc tests/standard -s
 ```
+
+All tests should pass with having to use `-s` or provide any interaction.
+
 
 # Contributing
 
-We use `black` to prevent code formatting discussions.
+We use `black` and `isort` to prevent code formatting discussions.
 
 The `make venv` setup method installs git pre-commit hooks that check conformance automatically.
 
-You can also `make check` and `make fix` manually, or use an editor plugin.
+You can also `make check` and `make fix` manually, or use an editor plugins.
 
 # License
 

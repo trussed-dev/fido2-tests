@@ -1,5 +1,4 @@
 import pytest
-
 from fido2.ctap import CtapError
 
 from tests.utils import *

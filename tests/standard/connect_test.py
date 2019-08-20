@@ -1,5 +1,6 @@
-import tests
 import pytest
+
+import tests
 
 
 @pytest.mark.run(order=1)
