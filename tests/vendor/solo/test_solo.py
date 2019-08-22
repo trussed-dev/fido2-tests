@@ -1,4 +1,5 @@
 import math
+import sys
 from binascii import hexlify
 
 import pytest
@@ -11,15 +12,16 @@ from solo.commands import SoloExtension
 
 from tests.utils import shannon_entropy
 
+is_nfc = '--nfc' in sys.argv
 
 @pytest.fixture(scope="module", params=["u2f"])
 def solo(request, device):
     sc = SoloClient()
-    sc.find_device(device.dev)
     if request.param == "u2f":
         sc.use_u2f()
     else:
         sc.use_hid()
+    sc.find_device(device.dev)
     return sc
 
 
@@ -27,6 +29,7 @@ class TestSolo(object):
     def test_solo(self, solo):
         pass
 
+    @pytest.mark.skipif(is_nfc, reason='solo client is fixed to HID for this')
     def test_rng(self, solo):
 
         total = 1024 * 16
@@ -59,7 +62,9 @@ class TestSolo(object):
         assert (a.auth_data.flags & 0x5) == 0x5
 
         assert len(solo.solo_version()) == 3
-        solo.get_rng()
+
+        if not is_nfc:
+            solo.get_rng()
 
         solo.exchange = exchange
 
