@@ -1,10 +1,7 @@
-import math
-from binascii import hexlify
+import sys
 
 import pytest
-from fido2.ctap import CtapError
 from fido2.ctap1 import ApduError
-from fido2.hid import CTAPHID
 from fido2.utils import sha256
 from solo.client import SoloClient
 from solo.commands import SoloExtension
@@ -23,6 +20,10 @@ def solo(request, device):
     return sc
 
 
+@pytest.mark.skipif(
+    '--nfc' in sys.argv,
+    reason="Wrong transport"
+)
 class TestSolo(object):
     def test_solo(self, solo):
         pass
