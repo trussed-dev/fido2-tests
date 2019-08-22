@@ -175,10 +175,17 @@ class TestDevice:
             print("Sending restart command...")
             self.send_magic_reboot()
             TestDevice.delay(0.25)
-        else:
-            print("Please reboot authenticator and hit enter")
-            input()
-            self.find_device(self.nfc_interface_only)
+            return
+
+        if self.is_nfc:
+            if self.send_nfc_reboot():
+                TestDevice.delay(0.5)
+                self.dev._select()
+                return
+
+        print("Please reboot authenticator and hit enter")
+        input()
+        self.find_device(self.nfc_interface_only)
 
     def send_data(self, cmd, data):
         if not isinstance(data, bytes):
@@ -205,7 +212,7 @@ class TestDevice:
 
     def send_magic_reboot(self,):
         """
-        For use in simulation and testing.  Random bytes that authentictor should detect
+        For use in simulation and testing.  Random bytes that authenticator should detect
         and then restart itself.
         """
         magic_cmd = (
@@ -217,6 +224,15 @@ class TestDevice:
             + b"\x9a\x72\x50\xdc"
         )
         self.dev._dev.InternalSendPacket(Packet(magic_cmd))
+
+    def send_nfc_reboot(self,):
+        """
+        Send magic nfc reboot sequence for solokey
+        """
+        data = b"\x12\x56\xab\xf0"
+        header = struct.pack('!BBBBB', 0x00, 0xee, 0x00, 0x00, len(data))
+        resp, sw1, sw2 = self.dev.apdu_exchange(header + data)
+        return sw1 == 0x90 and sw2 == 0x00
 
     def cid(self,):
         return self.dev._dev.cid
