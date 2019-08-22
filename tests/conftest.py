@@ -180,7 +180,7 @@ class TestDevice:
         if self.is_nfc:
             if self.send_nfc_reboot():
                 TestDevice.delay(0.5)
-                self.dev._select()
+                self.find_device(self.nfc_interface_only)
                 return
 
         print("Please reboot authenticator and hit enter")
