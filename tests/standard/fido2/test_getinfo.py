@@ -3,6 +3,7 @@ from fido2 import cbor
 from fido2.ctap import CtapError
 
 from tests.utils import *
+from tests.standard.fido2 import TestCborKeysSorted
 
 
 def test_get_info(info):
@@ -35,3 +36,38 @@ def test_Check_up_option(device, info):
             with pytest.raises(CtapError) as e:
                 device.sendMC(*FidoRequest(options={"up": True}).toMC())
             assert e.value.code == CtapError.ERR.INVALID_OPTION
+
+def test_self_cbor_sorting():
+    cbor_key_list_sorted = [
+        0,
+        1,
+        1,
+        2,
+        3,
+        -1,
+        -2,
+        "b",
+        "c",
+        "aa",
+        "aaa",
+        "aab",
+        "baa",
+        "bbb",
+    ]
+    TestCborKeysSorted(cbor_key_list_sorted)
+
+def test_self_cbor_integers():
+    with pytest.raises(ValueError) as e:
+        TestCborKeysSorted([1, 0])
+
+def test_self_cbor_major_type():
+    with pytest.raises(ValueError) as e:
+        TestCborKeysSorted([-1, 0])
+
+def test_self_cbor_strings():
+    with pytest.raises(ValueError) as e:
+        TestCborKeysSorted(["bb", "a"])
+
+def test_self_cbor_same_length_strings():
+    with pytest.raises(ValueError) as e:
+        TestCborKeysSorted(["ab", "aa"])
