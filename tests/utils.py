@@ -45,22 +45,29 @@ def generate_user():
     return {"id": user_id, "name": name, "icon": icon, "displayName": display_name}
 
 
+counter = 1
+
 def generate_user_maximum():
     """
     Generate RK with the maximum lengths of the fields, according to the minimal requirements of the FIDO2 spec
     """
+    global counter
+
     # https://www.w3.org/TR/webauthn/#user-handle
     user_id_length = 64
-    user_id = b'B' * user_id_length
+    user_id = secrets.token_bytes(user_id_length)
 
     # https://www.w3.org/TR/webauthn/#dictionary-pkcredentialentity
     name = " ".join(random.choice(name_list).strip() for i in range(0, 30))
+    name = f'{counter}: {name}'
     icon = "https://www.w3.org/TR/webauthn/" + 'A'*128
     display_name = "Displayed " + name
 
     name = name[:64]
     display_name = display_name[:64]
     icon = icon[:128]
+
+    counter += 1
 
     return {"id": user_id, "name": name, "icon": icon, "displayName": display_name}
 
