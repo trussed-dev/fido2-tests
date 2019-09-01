@@ -1,3 +1,4 @@
+import sys
 import pytest
 from fido2.ctap import CtapError
 
@@ -81,6 +82,7 @@ class TestResidentKey(object):
         for x, y in zip(regs, auths):
             verify(x, y, req.cdh)
 
+    @pytest.mark.skipif('solokeys' in sys.argv, reason="Old versions of SoloKeys truncates displayName")
     def test_rk_maximum_size(self, device, MC_RK_Res):
         """
         Check the lengths of the fields according to the FIDO2 spec
@@ -106,6 +108,7 @@ class TestResidentKey(object):
             for y in ("name", "icon", "displayName", "id"):
                 assert user_max_GA.user[y] == user_max[y]
 
+    @pytest.mark.skipif('solokeys' in sys.argv, reason="Old versions of SoloKeys truncates displayName")
     def test_rk_maximum_list_capacity_per_rp(self, device, MC_RK_Res):
         """
         Test maximum returned capacity of the RK for the given RP
