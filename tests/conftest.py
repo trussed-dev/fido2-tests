@@ -17,6 +17,7 @@ from tests.utils import *
 def pytest_addoption(parser):
     parser.addoption("--sim", action="store_true")
     parser.addoption("--nfc", action="store_true")
+    parser.addoption("--vendor", default="none")
 
 
 @pytest.fixture()

@@ -46,11 +46,12 @@ To run tests against a "simulation" build of the Solo authenticator, supply the 
 pytest --sim tests/standard
 ```
 
-
-
-
 All tests should pass without having to use `-s` or provide any interaction.
 
+# Notes
+
+Initial SoloKeys models truncates the displayName, which causes a couple of the tests to fail.
+To succeed all tests, pass `--vendor solokeys` as an option.
 
 # Contributing
 
