@@ -42,6 +42,12 @@ class TestSolo(object):
     def test_version(self, solo):
         assert len(solo.solo_version()) == 3
 
+    def test_version_hid(self, solo):
+        data = solo.send_data_hid(0x61, b'')
+        assert len(data) == 3
+        print(f'Version is {data[0]}.{data[1]}.{data[2]}')
+
+
     def test_bootloader_not(self, solo):
         with pytest.raises(ApduError) as e:
             solo.write_flash(0x0, b"1234")
