@@ -12,7 +12,6 @@ from tests.utils import *
     reason="Simulation doesn't care about user presence"
 )
 class TestUserPresence(object):
-    @pytest.mark.run(order=1)
     def test_user_presence_instructions(self, MCRes, GARes):
         print()
         print()
@@ -33,6 +32,11 @@ class TestUserPresence(object):
         with pytest.raises(CtapError) as e:
             device.sendGA(*FidoRequest(GARes, timeout=2).toGA())
         assert e.value.code == CtapError.ERR.INVALID_COMMAND
+
+    def test_user_presence_option_false(self, device, MCRes, GARes):
+        print("DO NOT ACTIVATE UP")
+        time.sleep(1)
+        device.sendGA(*FidoRequest(GARes, options = {'up': False}).toGA())
 
     def test_user_presence_permits_only_one_request(self, device, MCRes, GARes):
         print("ACTIVATE UP ONCE")
