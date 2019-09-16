@@ -37,6 +37,18 @@ class TestGetAssertion(object):
             device.sendGA(*FidoRequest(allow_list=allow_list).toGA())
         assert e.value.code == CtapError.ERR.NO_CREDENTIALS
 
+    def test_mismatched_rp(self, device, GARes):
+        rp_id = GARes.request.rp['id'][:]
+        rp_name = GARes.request.rp['name'][:]
+        rp_id += '.com'
+
+        mismatch_rp = {'id': rp_id, 'name': rp_name}
+
+        with pytest.raises(CtapError) as e:
+            device.sendGA(*FidoRequest(GARes, rp=mismatch_rp).toGA())
+        assert e.value.code == CtapError.ERR.NO_CREDENTIALS
+
+
     def test_missing_rp(self, device, GARes):
         with pytest.raises(CtapError) as e:
             device.sendGA(*FidoRequest(GARes, rp=None).toGA())
