@@ -1,3 +1,4 @@
+import sys
 import pytest
 from fido2.ctap import CtapError
 from fido2.utils import hmac_sha256, sha256
@@ -140,6 +141,12 @@ class TestGetAssertion(object):
                     allow_list=[{"type": b"public-key"}] + GARes.request.allow_list,
                 ).toGA()
             )
+
+    def test_user_presence_option_false(self, device, MCRes, GARes):
+        res = device.sendGA(*FidoRequest(GARes, options = {'up': False}).toGA())
+        verify(MCRes, res, GARes.request.cdh)
+        if '--nfc' not in sys.argv:
+            assert((res.auth_data.flags & 1) == 0)
 
 
 class TestGetAssertionAfterBoot(object):
