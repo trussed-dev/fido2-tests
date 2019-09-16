@@ -33,10 +33,21 @@ class TestUserPresence(object):
             device.sendGA(*FidoRequest(GARes, timeout=2).toGA())
         assert e.value.code == CtapError.ERR.INVALID_COMMAND
 
-    def test_user_presence_option_false(self, device, MCRes, GARes):
+    def test_user_presence_option_false_on_get_assertion(self, device, MCRes, GARes):
         print("DO NOT ACTIVATE UP")
         time.sleep(1)
-        device.sendGA(*FidoRequest(GARes, options = {'up': False}).toGA())
+        device.sendGA(*FidoRequest(GARes, options = {'up': False}, timeout=2).toGA())
+
+    def test_user_presence_option_false_on_make_credential(self, device, MCRes):
+        print("DO NOT ACTIVATE UP")
+        time.sleep(1)
+        with pytest.raises(CtapError) as e:
+            device.sendMC(*FidoRequest(MCRes, options = {'up': False}, timeout=1).toMC())
+        assert e.value.code == CtapError.ERR.INVALID_OPTION
+        with pytest.raises(CtapError) as e:
+            device.sendMC(*FidoRequest(MCRes, options = {'up': True}, timeout=1).toMC())
+        assert e.value.code == CtapError.ERR.INVALID_OPTION
+
 
     def test_user_presence_permits_only_one_request(self, device, MCRes, GARes):
         print("ACTIVATE UP ONCE")
