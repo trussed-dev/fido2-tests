@@ -128,7 +128,7 @@ class TestGetAssertion(object):
             device.sendGA(
                 *FidoRequest(
                     GARes,
-                    allow_list=[{"type": b"public-key", "id": 42}]
+                    allow_list=[{"type": "public-key", "id": 42}]
                     + GARes.request.allow_list,
                 ).toGA()
             )
@@ -138,7 +138,7 @@ class TestGetAssertion(object):
             device.sendGA(
                 *FidoRequest(
                     GARes,
-                    allow_list=[{"type": b"public-key"}] + GARes.request.allow_list,
+                    allow_list=[{"type": "public-key"}] + GARes.request.allow_list,
                 ).toGA()
             )
 
