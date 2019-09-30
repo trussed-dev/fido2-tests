@@ -35,7 +35,7 @@ def MC_RK_Res(device, SetPINRes):
 
 @pytest.fixture(scope="class")
 def GA_RK_Res(device, MC_RK_Res):
-    req = FidoRequest(MC_RK_Res)
+    req = FidoRequest(MC_RK_Res, options=None)
     res = device.sendGA(*req.toGA())
     setattr(res, "request", req)
     return res
