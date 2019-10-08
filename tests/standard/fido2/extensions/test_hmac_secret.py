@@ -63,7 +63,7 @@ class TestHmacSecret(object):
         pass
 
     @pytest.mark.parametrize("salts", [(salt1,), (salt1, salt2)])
-    def test_hmac_secret(self, device, MCHmacSecret, cipher, sharedSecret, salts):
+    def test_hmac_secret_entropy(self, device, MCHmacSecret, cipher, sharedSecret, salts):
         print("salts:", salts)
         key_agreement, shared_secret = sharedSecret
         salt_enc, salt_auth = get_salt_params(cipher, shared_secret, salts)
@@ -90,6 +90,40 @@ class TestHmacSecret(object):
         if len(salts) == 2:
             assert shannon_entropy(ext["hmac-secret"]) > 5.4
             assert shannon_entropy(key) > 5.4
+
+    def get_output(self, device, MCHmacSecret, cipher, sharedSecret, salts):
+        key_agreement, shared_secret = sharedSecret
+        salt_enc, salt_auth = get_salt_params(cipher, shared_secret, salts)
+        req = FidoRequest(
+            extensions={"hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}}
+        )
+        auth = device.sendGA(*req.toGA())
+
+        ext = auth.auth_data.extensions
+        assert ext
+        assert "hmac-secret" in ext
+        assert isinstance(ext["hmac-secret"], bytes)
+        assert len(ext["hmac-secret"]) == len(salts) * 32
+
+        verify(MCHmacSecret, auth, req.cdh)
+
+        dec = cipher.decryptor()
+        output = dec.update(ext["hmac-secret"]) + dec.finalize()
+
+        if len(salts) == 2:
+            return (output[0:32], output[32:64])
+        else:
+            return output
+
+    def test_hmac_secret_sanity(self, device, MCHmacSecret, cipher, sharedSecret):
+        output1 = self.get_output(device, MCHmacSecret, cipher, sharedSecret, (salt1,))
+        output12 = self.get_output(device, MCHmacSecret, cipher, sharedSecret, (salt1, salt2))
+        output21 = self.get_output(device, MCHmacSecret, cipher, sharedSecret, (salt2, salt1))
+
+        assert output12[0] == output1
+        assert output21[1] == output1
+        assert output21[0] == output12[1]
+        assert output12[0] != output12[1]
 
     def test_missing_keyAgreement(self, device, cipher, sharedSecret):
         key_agreement, shared_secret = sharedSecret
