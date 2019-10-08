@@ -1,3 +1,4 @@
+import sys
 import pytest
 from fido2.ctap import CtapError
 from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
@@ -49,6 +50,7 @@ def GAPinRes(device, MCPinRes):
     return res
 
 
+@pytest.mark.skipif('trezor' in sys.argv, reason="ClientPin is not supported on Trezor.")
 class TestPin(object):
     def test_pin(self, CPRes):
         pass
@@ -134,6 +136,7 @@ class TestPin(object):
         assert e.value.code == CtapError.ERR.NO_CREDENTIALS
 
 
+@pytest.mark.skipif('trezor' in sys.argv, reason="ClientPin is not supported on Trezor.")
 def test_pin_attempts(device, SetPinRes):
     # Flip 1 bit
     pin = SetPinRes.PIN
