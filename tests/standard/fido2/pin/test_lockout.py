@@ -1,3 +1,4 @@
+import sys
 import pytest
 from fido2.ctap import CtapError
 from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
@@ -5,6 +6,7 @@ from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
 from tests.utils import *
 
 
+@pytest.mark.skipif('trezor' in sys.argv, reason="ClientPin is not supported on Trezor.")
 def test_lockout(device, resetDevice):
     pin = "TestPin"
     device.client.pin_protocol.set_pin(pin)
