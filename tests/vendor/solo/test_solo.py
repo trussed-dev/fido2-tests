@@ -84,6 +84,7 @@ class TestSolo(object):
     def test_load_external_key_invalidate_old_cred(self,solo, device, MCRes, GARes):
         ext_key_cmd = 0x62
         verify(MCRes, GARes)
+        print ('Enter user presence THREE times.')
         solo.send_data_hid(ext_key_cmd, b'\x01\x00\x00\x00' + b'Z' * 96)
 
         # Old credential should not exist now.
@@ -99,6 +100,7 @@ class TestSolo(object):
         key_A = b'A' * 96
         key_B = b'B' * 96
         ext_key_cmd = 0x62
+        print ('Enter user presence THREE times.')
         solo.send_data_hid(ext_key_cmd, b'\x01\x00\x00\x00' + key_A)
 
         # New credential works.
@@ -112,12 +114,14 @@ class TestSolo(object):
         verify(mc_A_res, ga_A_res, ga_A_req.cdh)
 
         # Load up Key B and verify cred A doesn't exist.
+        print ('Enter user presence THREE times.')
         solo.send_data_hid(ext_key_cmd, b'\x01\x00\x00\x00' + key_B)
         with pytest.raises(CtapError) as e:
             ga_A_res = device.sendGA(*FidoRequest(ga_A_req).toGA())
         assert(e.value.code == CtapError.ERR.NO_CREDENTIALS)
 
         # Load up Key A and verify cred A is back.
+        print ('Enter user presence THREE times.')
         solo.send_data_hid(ext_key_cmd, b'\x01\x00\x00\x00' + key_A)
         ga_A_res = device.sendGA(*FidoRequest(ga_A_req).toGA())
         verify(mc_A_res, ga_A_res, ga_A_req.cdh)
