@@ -105,6 +105,36 @@ class TestResidentKey(object):
             assert res.user["id"] == reg.request.user["id"]
             verify(reg, res, req.cdh)
 
+    @pytest.mark.skipif('trezor' not in sys.argv, reason="Only Trezor has a display.")
+    def test_replace_rk_display(self, device):
+        """
+        Test replacing resident keys.
+        """
+        user1 = generate_user()
+        user2 = generate_user()
+        rp1 = {"id": "example.org", "name": "Example"}
+        rp2 = {"id": "example.com", "name": "Example"}
+
+        # Registration data is a list of (rp, user, number), where number is
+        # the expected position of the credential after all registrations are
+        # complete.
+        reg_data = [(rp1, user1, 2), (rp1, user2, None), (rp1, user2, 1), (rp2, user2, 1)]
+        regs = []
+        for rp, user, number in reg_data:
+            req = FidoRequest(options={"rk": True}, rp=rp, user=user)
+            res = device.sendMC(*req.toMC())
+            setattr(res, "request", req)
+            setattr(res, "number", number)
+            regs.append(res)
+
+        # Check.
+        for reg in regs:
+            if reg.number is not None:
+                req = FidoRequest(rp=reg.request.rp, options=None, on_keepalive=DeviceSelectCredential(reg.number))
+                res = device.sendGA(*req.toGA())
+                assert res.user["id"] == reg.request.user["id"]
+                verify(reg, res, req.cdh)
+
     @pytest.mark.skipif('trezor' in sys.argv, reason="Trezor does not support get_next_assertion() because it has a display.")
     @pytest.mark.skipif('solokeys' in sys.argv, reason="Initial SoloKeys model truncates displayName")
     def test_rk_maximum_size_nodisplay(self, device, MC_RK_Res):
