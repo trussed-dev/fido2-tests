@@ -1,9 +1,15 @@
 import math
 import random
 import secrets
+import sys
 
 from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
 from fido2.utils import hmac_sha256, sha256
+
+if 'trezor' in sys.argv:
+    from .vendor.trezor.utils import DeviceSelectCredential
+else:
+    from .vendor.solo.utils import DeviceSelectCredential
 
 name_list = open("data/first-names.txt").readlines()
 
@@ -97,6 +103,8 @@ def generate(param):
         return get_key_params()
     if param == "allow_list":
         return []
+    if param == "on_keepalive":
+        return DeviceSelectCredential(1)
     return None
 
 
@@ -126,6 +134,7 @@ class FidoRequest:
             "extensions",
             "pin_auth",
             "timeout",
+            "on_keepalive",
         ):
             self.save_attr(i, kwargs.get(i, Empty), request)
 
@@ -157,6 +166,7 @@ class FidoRequest:
             self.pin_auth,
             self.pin_protocol,
             self.timeout,
+            self.on_keepalive,
         ]
 
     def toMC(self,):
@@ -171,6 +181,7 @@ class FidoRequest:
             self.pin_auth,
             self.pin_protocol,
             self.timeout,
+            self.on_keepalive,
         ]
 
         return args + self.get_optional_args()
