@@ -6,6 +6,7 @@ from fido2.utils import hmac_sha256, sha256
 from tests.utils import FidoRequest
 
 
+# Test U2F register works with FIDO2 auth
 class TestCtap1WithCtap2(object):
     def test_ctap1_register(self, RegRes):
         RegRes.verify(RegRes.request.appid, RegRes.request.challenge)
@@ -25,3 +26,17 @@ class TestCtap1WithCtap2(object):
         )
         auth.verify(req.cdh, credential_data.public_key)
         assert auth.credential["id"] == RegRes.key_handle
+
+# Test FIDO2 register works with U2F auth
+class TestCtap2WithCtap1(object):
+    def test_ctap1_authenticate(self, MCRes, device):
+        req = FidoRequest()
+        key_handle = MCRes.auth_data.credential_data.credential_id
+        res = device.authenticate(req.challenge, req.appid, key_handle)
+
+        credential_data = AttestedCredentialData(MCRes.auth_data.credential_data)
+        pubkey_string = b'\x04' + credential_data.public_key[-2] + credential_data.public_key[-3]
+
+        res.verify(
+            req.appid, req.challenge, pubkey_string
+        )
