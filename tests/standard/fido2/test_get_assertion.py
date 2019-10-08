@@ -157,6 +157,7 @@ class TestGetAssertion(object):
             assert((res.auth_data.flags & 1) == 0)
 
 
+@pytest.mark.skipif('trezor' in sys.argv, reason="Reboot is not supported on Trezor.")
 class TestGetAssertionAfterBoot(object):
     def test_assertion_after_reboot(self, rebootedDevice, MCRes, GARes):
         credential_data = AttestedCredentialData(MCRes.auth_data.credential_data)
