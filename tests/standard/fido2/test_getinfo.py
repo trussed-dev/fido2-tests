@@ -1,3 +1,4 @@
+import sys
 import pytest
 from fido2 import cbor
 from fido2.ctap import CtapError
@@ -24,6 +25,7 @@ def test_Check_options_field(info):
         assert info.options[x] in [True, False]
 
 
+@pytest.mark.skipif('trezor' in sys.argv, reason="User verification flag is intentionally set to true on Trezor even when user verification is not configured. (Otherwise some services refuse registration without giving a reason.)")
 def test_Check_uv_option(device, info):
     if "uv" in info.options:
         if info.options["uv"]:

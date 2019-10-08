@@ -84,6 +84,7 @@ class TestGetAssertion(object):
     def test_unknown_option(self, device, GARes):
         device.sendGA(*FidoRequest(GARes, options={"unknown": True}).toGA())
 
+    @pytest.mark.skipif('trezor' in sys.argv, reason="User verification flag is intentionally set to true on Trezor even when user verification is not configured. (Otherwise some services refuse registration without giving a reason.)")
     def test_option_uv(self, device, info, GARes):
         if "uv" in info.options:
             if info.options["uv"]:
