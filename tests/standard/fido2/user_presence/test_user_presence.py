@@ -8,7 +8,7 @@ from tests.utils import *
 
 
 @pytest.mark.skipif(
-    "--sim" in sys.argv or '--nfc' in sys.argv,
+    ("--sim" in sys.argv or '--nfc' in sys.argv) and not 'trezor' in sys.argv,
     reason="Simulation doesn't care about user presence"
 )
 class TestUserPresence(object):
@@ -30,8 +30,15 @@ class TestUserPresence(object):
     def test_no_user_presence(self, device, MCRes, GARes):
         print("DO NOT ACTIVATE UP")
         with pytest.raises(CtapError) as e:
-            device.sendGA(*FidoRequest(GARes, timeout=2).toGA())
+            device.sendGA(*FidoRequest(GARes, timeout=2, on_keepalive=None).toGA())
         assert e.value.code == CtapError.ERR.INVALID_COMMAND
+
+    @pytest.mark.skipif(not 'trezor' in sys.argv, reason="Only Trezor supports decline.")
+    def test_user_decline(self, device, MCRes, GARes):
+        print("PRESS DECLINE")
+        with pytest.raises(CtapError) as e:
+            device.sendGA(*FidoRequest(GARes, on_keepalive=DeviceSelectCredential(0)).toGA())
+        assert e.value.code == CtapError.ERR.OPERATION_DENIED
 
     def test_user_presence_option_false_on_get_assertion(self, device, MCRes, GARes):
         print("DO NOT ACTIVATE UP")
@@ -54,5 +61,5 @@ class TestUserPresence(object):
         device.sendGA(*FidoRequest(GARes).toGA())
 
         with pytest.raises(CtapError) as e:
-            device.sendGA(*FidoRequest(GARes, timeout=1).toGA())
+            device.sendGA(*FidoRequest(GARes, timeout=1, on_keepalive=None).toGA())
         assert e.value.code == CtapError.ERR.INVALID_COMMAND
