@@ -1,5 +1,6 @@
 import struct
 import time
+import sys
 
 import pytest
 from fido2.attestation import Attestation
@@ -9,9 +10,13 @@ from fido2.ctap1 import CTAP1
 from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
 from fido2.hid import CtapHidDevice
 from fido2.utils import Timeout, hmac_sha256, sha256
-from solo.fido2 import force_udp_backend
 
 from tests.utils import *
+
+if 'trezor' in sys.argv:
+    from .vendor.trezor.udp_backend import force_udp_backend
+else:
+    from solo.fido2 import force_udp_backend
 
 
 def pytest_addoption(parser):
