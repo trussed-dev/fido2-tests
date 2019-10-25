@@ -31,7 +31,7 @@ class TestUserPresence(object):
         print("DO NOT ACTIVATE UP")
         with pytest.raises(CtapError) as e:
             device.sendGA(*FidoRequest(GARes, timeout=2, on_keepalive=None).toGA())
-        assert e.value.code == CtapError.ERR.INVALID_COMMAND
+        assert e.value.code == CtapError.ERR.KEEPALIVE_CANCEL
 
     @pytest.mark.skipif(not 'trezor' in sys.argv, reason="Only Trezor supports decline.")
     def test_user_decline(self, device, MCRes, GARes):
@@ -62,4 +62,4 @@ class TestUserPresence(object):
 
         with pytest.raises(CtapError) as e:
             device.sendGA(*FidoRequest(GARes, timeout=1, on_keepalive=None).toGA())
-        assert e.value.code == CtapError.ERR.INVALID_COMMAND
+        assert e.value.code == CtapError.ERR.KEEPALIVE_CANCEL
