@@ -55,7 +55,7 @@ class TestU2F(object):
             regs.append(reg)
             # check endianness
             if lastc:
-                assert (auth.counter - lastc) < 10
+                assert (auth.counter - lastc) < 256
             lastc = auth.counter
             if lastc > 0x80000000:
                 print("WARNING: counter is unusually high: %04x" % lastc)
