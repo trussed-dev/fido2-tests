@@ -43,12 +43,12 @@ class TestSolo(object):
         print("Entropy is %.5f bits per byte." % s)
 
     def test_version(self, solo):
-        assert len(solo.solo_version()) == 3
+        assert len(solo.solo_version()) == 4
 
     def test_version_hid(self, solo):
         data = solo.send_data_hid(0x61, b'')
-        assert len(data) == 3
-        print(f'Version is {data[0]}.{data[1]}.{data[2]}')
+        assert len(data) == 4
+        print(f'Version is {data[0]}.{data[1]}.{data[2]} locked?=={data[3]}')
 
 
     def test_bootloader_not(self, solo):
@@ -68,7 +68,6 @@ class TestSolo(object):
         assert a.credential["id"] == req
         assert (a.auth_data.flags & 0x5) == 0x5
 
-        assert len(solo.solo_version()) == 3
         solo.get_rng()
 
         solo.exchange = exchange
