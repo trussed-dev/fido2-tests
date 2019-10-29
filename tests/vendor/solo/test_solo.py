@@ -92,7 +92,7 @@ class TestSolo(object):
         ext_key_cmd = 0x62
         verify(MCRes, GARes)
         print ('Enter user presence THREE times.')
-        counter = int(time.time()*1000.0) & 0x7fffffff
+        counter = int(time.time()*1000.0) & 0xffffffff
         restore_key(solo, counter, b'Z' * 96)
 
         # Old credential should not exist now.
@@ -109,7 +109,7 @@ class TestSolo(object):
         key_B = b'B' * 96
 
         print ('Enter user presence THREE times.')
-        counter = int(time.time()*1000.0) & 0x7fffffff
+        counter = int(time.time()*1000.0) & 0xffffffff
         restore_key(solo, counter, key_A)
 
         # New credential works.
@@ -132,9 +132,15 @@ class TestSolo(object):
 
         # Load up Key A and verify cred A is back.
         print ('Enter user presence THREE times.')
-        counter = int(time.time()*1000.0) & 0x7fffffff
+        counter = int(time.time()*1000.0) & 0xffffffff
         restore_key(solo, counter, key_A)
 
         ga_A_res = device.sendGA(*FidoRequest(ga_A_req).toGA())
         verify(mc_A_res, ga_A_res, ga_A_req.cdh)
+
+        # check new counter was overwritten properly
+        print('restore counter: ', hex(counter))
+        print('ga counter:      ', hex(ga_A_res.auth_data.counter))
+        assert(ga_A_res.auth_data.counter > counter)
+        assert(ga_A_res.auth_data.counter - 256  < counter)
 
