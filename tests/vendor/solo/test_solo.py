@@ -1,6 +1,8 @@
 import sys
 
 import pytest
+import struct
+import time
 from fido2.ctap1 import ApduError
 from fido2.ctap2 import CtapError
 from fido2.utils import sha256
@@ -8,6 +10,12 @@ from solo.client import SoloClient
 from solo.commands import SoloExtension
 
 from tests.utils import shannon_entropy, verify, FidoRequest
+
+def restore_key(device, count, key):
+    ext_key_cmd = 0x62
+    count = struct.pack('>L', count)
+    version = struct.pack('BBBB', *[0,0,0,0])
+    device.send_data_hid(ext_key_cmd, version + count + key)
 
 
 @pytest.fixture(scope="module", params=["u2f"])
@@ -84,7 +92,8 @@ class TestSolo(object):
         ext_key_cmd = 0x62
         verify(MCRes, GARes)
         print ('Enter user presence THREE times.')
-        solo.send_data_hid(ext_key_cmd, b'\x01\x00\x00\x00' + b'Z' * 96)
+        counter = int(time.time()*1000.0) & 0x7fffffff
+        restore_key(solo, counter, b'Z' * 96)
 
         # Old credential should not exist now.
         with pytest.raises(CtapError) as e:
@@ -98,9 +107,10 @@ class TestSolo(object):
         
         key_A = b'A' * 96
         key_B = b'B' * 96
-        ext_key_cmd = 0x62
+
         print ('Enter user presence THREE times.')
-        solo.send_data_hid(ext_key_cmd, b'\x01\x00\x00\x00' + key_A)
+        counter = int(time.time()*1000.0) & 0x7fffffff
+        restore_key(solo, counter, key_A)
 
         # New credential works.
         mc_A_req = FidoRequest()
@@ -114,14 +124,17 @@ class TestSolo(object):
 
         # Load up Key B and verify cred A doesn't exist.
         print ('Enter user presence THREE times.')
-        solo.send_data_hid(ext_key_cmd, b'\x01\x00\x00\x00' + key_B)
+        restore_key(solo, counter, key_B)
+
         with pytest.raises(CtapError) as e:
             ga_A_res = device.sendGA(*FidoRequest(ga_A_req).toGA())
         assert(e.value.code == CtapError.ERR.NO_CREDENTIALS)
 
         # Load up Key A and verify cred A is back.
         print ('Enter user presence THREE times.')
-        solo.send_data_hid(ext_key_cmd, b'\x01\x00\x00\x00' + key_A)
+        counter = int(time.time()*1000.0) & 0x7fffffff
+        restore_key(solo, counter, key_A)
+
         ga_A_res = device.sendGA(*FidoRequest(ga_A_req).toGA())
         verify(mc_A_res, ga_A_res, ga_A_req.cdh)
 
