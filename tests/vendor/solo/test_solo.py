@@ -88,8 +88,15 @@ class TestSolo(object):
         assert(e.value.code == CtapError.ERR.INVALID_LENGTH)
 
     @pytest.mark.skipif(not IS_EXPERIMENTAL, reason="Experimental")
-    def test_load_external_key_invalidate_old_cred(self,solo, device, MCRes, GARes):
+    def test_load_external_key_wrong_version(self,solo, device, MCRes, GARes):
         ext_key_cmd = 0x62
+        wrong_version = struct.pack('BBBB', *[0,0,1,0])
+        with pytest.raises(CtapError) as e:
+            solo.send_data_hid(ext_key_cmd, wrong_version + b"\x10\x00\x00\x00" + b'Z' * 96)
+        assert(e.value.code == CtapError.ERR.UNSUPPORTED_OPTION)
+
+    @pytest.mark.skipif(not IS_EXPERIMENTAL, reason="Experimental")
+    def test_load_external_key_invalidate_old_cred(self,solo, device, MCRes, GARes):
         verify(MCRes, GARes)
         print ('Enter user presence THREE times.')
         counter = int(time.time()*1000.0) & 0xffffffff
