@@ -1,6 +1,6 @@
 import struct
-import time
 import sys
+import time
 
 import pytest
 from fido2.attestation import Attestation
@@ -10,10 +10,9 @@ from fido2.ctap1 import CTAP1
 from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
 from fido2.hid import CtapHidDevice
 from fido2.utils import Timeout, hmac_sha256, sha256
-
 from tests.utils import *
 
-if 'trezor' in sys.argv:
+if "trezor" in sys.argv:
     from .vendor.trezor.udp_backend import force_udp_backend
 else:
     from solo.fido2 import force_udp_backend
@@ -237,7 +236,7 @@ class TestDevice:
         Send magic nfc reboot sequence for solokey
         """
         data = b"\x12\x56\xab\xf0"
-        header = struct.pack('!BBBBB', 0x00, 0xee, 0x00, 0x00, len(data))
+        header = struct.pack("!BBBBB", 0x00, 0xEE, 0x00, 0x00, len(data))
         resp, sw1, sw2 = self.dev.apdu_exchange(header + data)
         return sw1 == 0x90 and sw2 == 0x00
 
@@ -263,10 +262,19 @@ class TestDevice:
             raise ValueError("Unexpected error: %02x" % data[0])
 
     def register(self, chal, appid, on_keepalive=DeviceSelectCredential(1)):
-        reg_data = _call_polling(0.25, None, on_keepalive, self.ctap1.register, chal, appid)
+        reg_data = _call_polling(
+            0.25, None, on_keepalive, self.ctap1.register, chal, appid
+        )
         return reg_data
 
-    def authenticate(self, chal, appid, key_handle, check_only=False, on_keepalive=DeviceSelectCredential(1)):
+    def authenticate(
+        self,
+        chal,
+        appid,
+        key_handle,
+        check_only=False,
+        on_keepalive=DeviceSelectCredential(1),
+    ):
         auth_data = _call_polling(
             0.25,
             None,
