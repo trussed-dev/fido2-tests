@@ -9,7 +9,8 @@ from fido2.ctap import CtapError
 from fido2.ctap1 import CTAP1
 from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
 from fido2.hid import CtapHidDevice
-from fido2.utils import Timeout, hmac_sha256, sha256
+from fido2.utils import hmac_sha256, sha256
+from solo import helpers
 from tests.utils import *
 
 if "trezor" in sys.argv:
@@ -196,7 +197,7 @@ class TestDevice:
     def send_data(self, cmd, data):
         if not isinstance(data, bytes):
             data = struct.pack("%dB" % len(data), *[ord(x) for x in data])
-        with Timeout(1.0) as event:
+        with helpers.Timeout(1.0) as event:
             return self.dev.call(cmd, data, event)
 
     def send_raw(self, data, cid=None):
@@ -249,7 +250,7 @@ class TestDevice:
         self.dev._dev.cid = cid
 
     def recv_raw(self,):
-        with Timeout(1.0):
+        with helpers.Timeout(1.0):
             cmd, payload = self.dev._dev.InternalRecv()
         return cmd, payload
 
