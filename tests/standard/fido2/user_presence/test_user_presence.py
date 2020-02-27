@@ -30,7 +30,8 @@ class TestUserPresence(object):
     def test_no_user_presence(self, device, MCRes, GARes):
         print("DO NOT ACTIVATE UP")
         with pytest.raises(CtapError) as e:
-            device.sendGA(*FidoRequest(GARes, timeout=2, on_keepalive=None).toGA())
+            with Timeout(2.0) as event:
+                device.sendGA(*FidoRequest(GARes, timeout=event, on_keepalive=None).toGA())
         assert e.value.code == CtapError.ERR.KEEPALIVE_CANCEL
 
     @pytest.mark.skipif(not 'trezor' in sys.argv, reason="Only Trezor supports decline.")
@@ -43,16 +44,19 @@ class TestUserPresence(object):
     def test_user_presence_option_false_on_get_assertion(self, device, MCRes, GARes):
         print("DO NOT ACTIVATE UP")
         time.sleep(1)
-        device.sendGA(*FidoRequest(GARes, options = {'up': False}, timeout=2).toGA())
+        with Timeout(2.0) as event:
+            device.sendGA(*FidoRequest(GARes, options = {'up': False}, timeout=event).toGA())
 
     def test_user_presence_option_false_on_make_credential(self, device, MCRes):
         print("DO NOT ACTIVATE UP")
         time.sleep(1)
         with pytest.raises(CtapError) as e:
-            device.sendMC(*FidoRequest(MCRes, options = {'up': False}, timeout=1).toMC())
+            with Timeout(1.0) as event:
+                device.sendMC(*FidoRequest(MCRes, options = {'up': False}, timeout=event).toMC())
         assert e.value.code == CtapError.ERR.INVALID_OPTION
         with pytest.raises(CtapError) as e:
-            device.sendMC(*FidoRequest(MCRes, options = {'up': True}, timeout=1).toMC())
+            with Timeout(1.0) as event:
+                device.sendMC(*FidoRequest(MCRes, options = {'up': True}, timeout=event).toMC())
         assert e.value.code == CtapError.ERR.INVALID_OPTION
 
 
@@ -61,5 +65,6 @@ class TestUserPresence(object):
         device.sendGA(*FidoRequest(GARes).toGA())
 
         with pytest.raises(CtapError) as e:
-            device.sendGA(*FidoRequest(GARes, timeout=1, on_keepalive=None).toGA())
+            with Timeout(1.0) as event:
+                device.sendGA(*FidoRequest(GARes, timeout=event, on_keepalive=None).toGA())
         assert e.value.code == CtapError.ERR.KEEPALIVE_CANCEL

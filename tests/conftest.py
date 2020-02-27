@@ -9,7 +9,7 @@ from fido2.ctap import CtapError
 from fido2.ctap1 import CTAP1
 from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
 from fido2.hid import CtapHidDevice
-from fido2.utils import Timeout, hmac_sha256, sha256
+from fido2.utils import hmac_sha256, sha256
 
 from tests.utils import *
 
@@ -198,6 +198,7 @@ class TestDevice:
         if not isinstance(data, bytes):
             data = struct.pack("%dB" % len(data), *[ord(x) for x in data])
         with Timeout(1.0) as event:
+            event.is_set()
             return self.dev.call(cmd, data, event)
 
     def send_raw(self, data, cid=None):
