@@ -50,8 +50,13 @@ class TestResidentKey(object):
         verify(MC_RK_Res, GA_RK_Res)
 
     def test_user_info_returned(self, MC_RK_Res, GA_RK_Res):
+        assert "id" in GA_RK_Res.user.keys()
+        assert MC_RK_Res.auth_data.credential_data.credential_id == GA_RK_Res.credential['id']
+        assert MC_RK_Res.request.user['id'] == GA_RK_Res.user['id']
         if not MC_RK_Res.request.pin_protocol:
             assert "id" in GA_RK_Res.user.keys() and len(GA_RK_Res.user.keys()) == 1
+        else:
+            assert MC_RK_Res.request.user == GA_RK_Res.user
 
     @pytest.mark.skipif('trezor' in sys.argv, reason="Trezor does not support get_next_assertion() because it has a display.")
     def test_multiple_rk_nodisplay(self, device, MC_RK_Res):
@@ -62,7 +67,7 @@ class TestResidentKey(object):
             res = device.sendMC(*req.toMC())
             regs.append(res)
 
-        req = FidoRequest(MC_RK_Res, user=generate_user())
+        req = FidoRequest(MC_RK_Res, options=None, user=generate_user())
         res = device.sendGA(*req.toGA())
 
         assert res.number_of_credentials == 4
@@ -75,13 +80,16 @@ class TestResidentKey(object):
         with pytest.raises(CtapError) as e:
             device.ctap2.get_next_assertion()
 
+        assert len(regs) == 4
+        assert len(regs) == len(auths)
+
         if MC_RK_Res.request.pin_protocol:
             for x in auths:
                 for y in ("name", "icon", "displayName", "id"):
                     if y not in x.user.keys():
                         print("FAIL: %s was not in user: " % y, x.user)
 
-        for x, y in zip(regs, auths):
+        for x, y in zip(regs, auths[::-1]):
             verify(x, y, req.cdh)
 
     @pytest.mark.skipif('trezor' not in sys.argv, reason="Only Trezor has a display.")
@@ -147,6 +155,7 @@ class TestResidentKey(object):
         user_max = generate_user_maximum()
         req = FidoRequest(MC_RK_Res, user=user_max)
         resMC = device.sendMC(*req.toMC())
+        req.options={}
         resGA = device.sendGA(*req.toGA())
         credentials = resGA.number_of_credentials
         assert credentials == 5
@@ -155,7 +164,7 @@ class TestResidentKey(object):
         for i in range(credentials - 1):
             auths.append(device.ctap2.get_next_assertion())
 
-        user_max_GA = auths[-1]
+        user_max_GA = auths[0]
         verify(resMC, user_max_GA, req.cdh)
 
         if MC_RK_Res.request.pin_protocol:
@@ -191,7 +200,7 @@ class TestResidentKey(object):
             users.append(user)
             return user
 
-        req = FidoRequest(MC_RK_Res, user=get_user())
+        req = FidoRequest(MC_RK_Res, options=None, user=get_user())
         res = device.sendGA(*req.toGA())
         current_credentials_count = res.number_of_credentials
 
@@ -203,7 +212,7 @@ class TestResidentKey(object):
             res = device.sendMC(*req.toMC())
             regs.append(res)
 
-        req = FidoRequest(MC_RK_Res, user=generate_user_maximum())
+        req = FidoRequest(MC_RK_Res, options=None, user=generate_user_maximum())
         res = device.sendGA(*req.toGA())
         assert res.number_of_credentials == RK_CAPACITY_PER_RP
 
@@ -214,7 +223,7 @@ class TestResidentKey(object):
         with pytest.raises(CtapError) as e:
             device.ctap2.get_next_assertion()
 
-        auths = auths[-RK_to_generate:]
+        auths = auths[::-1][-RK_to_generate:]
         regs = regs[-RK_to_generate:]
         users = users[-RK_to_generate:]
 
