@@ -53,7 +53,7 @@ class TestResidentKey(object):
         assert "id" in GA_RK_Res.user.keys()
         assert MC_RK_Res.auth_data.credential_data.credential_id == GA_RK_Res.credential['id']
         assert MC_RK_Res.request.user['id'] == GA_RK_Res.user['id']
-        if not MC_RK_Res.request.pin_protocol:
+        if not MC_RK_Res.request.pin_protocol or not GA_RK_Res.number_of_credentials:
             assert "id" in GA_RK_Res.user.keys() and len(GA_RK_Res.user.keys()) == 1
         else:
             assert MC_RK_Res.request.user == GA_RK_Res.user
