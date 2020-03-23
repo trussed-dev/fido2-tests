@@ -81,6 +81,8 @@ class TestResidentKey(object):
                     if y not in x.user.keys():
                         print("FAIL: %s was not in user: " % y, x.user)
 
+        auths.reverse() # ordered by most recently created, so need to reverse it.
+
         for x, y in zip(regs, auths):
             verify(x, y, req.cdh)
 
@@ -92,6 +94,8 @@ class TestResidentKey(object):
             res = device.sendMC(*req.toMC())
             setattr(res, "request", req)
             regs.append(res)
+
+        regs.reverse() # ordered by most recently created, so need to reverse it.
 
         for i, reg in enumerate(reversed(regs)):
             req = FidoRequest(MC_RK_Res, options=None, on_keepalive=DeviceSelectCredential(i + 1))
