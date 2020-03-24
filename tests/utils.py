@@ -32,6 +32,7 @@ def verify(reg, auth, cdh=None):
     if cdh is None:
         cdh = auth.request.cdh
     auth.verify(cdh, credential_data.public_key)
+    assert auth.auth_data.rp_id_hash == reg.auth_data.rp_id_hash
     assert auth.credential["id"] == reg.auth_data.credential_data.credential_id
 
 
