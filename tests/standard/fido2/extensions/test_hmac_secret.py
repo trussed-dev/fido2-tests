@@ -4,7 +4,7 @@ from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
 from fido2.ctap import CtapError
 from fido2.utils import hmac_sha256, sha256
 
-from tests.utils import FidoRequest, shannon_entropy, verify
+from tests.utils import FidoRequest, shannon_entropy, verify, generate_user
 
 
 def get_salt_params(cipher, shared_secret, salts):
@@ -45,6 +45,11 @@ def cipher(device, sharedSecret):
         algorithms.AES(shared_secret), modes.CBC(b"\x00" * 16), default_backend()
     )
 
+@pytest.fixture(scope="class")
+def fixed_users():
+    """ Fixed set of users to enable accounts to get overwritten """
+    return [ generate_user() for i in range(0, 100) ]
+
 
 class TestHmacSecret(object):
     def test_hmac_secret_make_credential(self, MCHmacSecret):
@@ -64,7 +69,6 @@ class TestHmacSecret(object):
 
     @pytest.mark.parametrize("salts", [(salt1,), (salt1, salt2)])
     def test_hmac_secret_entropy(self, device, MCHmacSecret, cipher, sharedSecret, salts):
-        print("salts:", salts)
         key_agreement, shared_secret = sharedSecret
         salt_enc, salt_auth = get_salt_params(cipher, shared_secret, salts)
         req = FidoRequest(
@@ -187,15 +191,49 @@ class TestHmacSecret(object):
         with pytest.raises(CtapError) as e:
             device.sendGA(*req.toGA())
         assert e.value.code == CtapError.ERR.INVALID_LENGTH
-        # auth = self.testGA(
-        # "Send GA request with incorrect salt length %d, expect INVALID_LENGTH"
-        #% len(salt_enc),
-        # rp["id"],
-        # cdh,
-        # other={
-        # "extensions": {
-        # "hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}
-        # }
-        # },
-        # expectedError=CtapError.ERR.INVALID_LENGTH,
-        # )
+
+    @pytest.mark.parametrize("salts", [(salt1,), (salt1, salt2)])
+    def test_get_next_assertion_has_extension(self, device, MCHmacSecret, cipher, sharedSecret, salts, fixed_users):
+        """ Check that get_next_assertion properly returns extension information for multiple accounts. """
+        accounts = 3
+        regs = []
+        auths = []
+        rp = {"id": "example_2.org", "name": "ExampleRP_2"}
+
+        for i in range(0, accounts):
+            req = FidoRequest(extensions={"hmac-secret": True},
+                              options={"rk": True},
+                              rp = rp,
+                              user = fixed_users[i])
+            res = device.sendMC(*req.toMC())
+            regs.append(res)
+
+        key_agreement, shared_secret = sharedSecret
+        salt_enc, salt_auth = get_salt_params(cipher, shared_secret, salts)
+        req = FidoRequest(
+            extensions={"hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}},
+            rp = rp,
+        )
+
+        auth = device.sendGA(*req.toGA())
+        assert auth.number_of_credentials == accounts
+
+        auths.append(auth)
+        for i in range(0, accounts - 1):
+            auths.append(device.ctap2.get_next_assertion())
+
+        for x in auths:
+            assert x.auth_data.flags & (1 << 7)       # has extension
+            ext = auth.auth_data.extensions
+            assert ext
+            assert "hmac-secret" in ext
+            assert isinstance(ext["hmac-secret"], bytes)
+            assert len(ext["hmac-secret"]) == len(salts) * 32
+            dec = cipher.decryptor()
+            key = dec.update(ext["hmac-secret"]) + dec.finalize()
+
+        auths.reverse()
+        for x, y in zip(regs, auths):
+            verify(x, y, req.cdh)
+
+
