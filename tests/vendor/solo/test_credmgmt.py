@@ -1,8 +1,9 @@
 import pytest
+import time
 from fido2.ctap import CtapError
 from fido2.ctap2 import CredentialManagement
 from tests.utils import *
-
+from binascii import hexlify
 
 @pytest.fixture(params=["123456"])
 def PinToken(request, device):
@@ -75,7 +76,7 @@ class TestCredentialManagement(object):
         assert res[0][CredentialManagement.RESULT.RP]["id"] == "ssh:"
         assert res[0][CredentialManagement.RESULT.RP_ID_HASH] == sha256(b"ssh:")
         # Solo doesn't store rpId with the exception of "ssh:"
-        assert res[1][CredentialManagement.RESULT.RP]["id"] == ""
+        assert res[1][CredentialManagement.RESULT.RP]["id"] == "xakcop.com"
         assert res[1][CredentialManagement.RESULT.RP_ID_HASH] == sha256(b"xakcop.com")
 
     def test_enumarate_creds(self, CredMgmt, MC_RK_Res):
@@ -129,8 +130,14 @@ class TestCredentialManagement(object):
 
         verify(reg, auth, req.cdh)
 
+        # get the ID from enumeration
+        creds = CredMgmt.enumerate_creds(reg.auth_data.rp_id_hash)
+        for cred in creds:
+            if cred[7]['id'] == reg.auth_data.credential_data.credential_id:
+                break
+
         # delete it
-        cred = {"id": reg.auth_data.credential_data.credential_id, "type": "public-key"}
+        cred = {"id": cred[7]['id'], "type": "public-key"}
         CredMgmt.delete_cred( cred )
 
         # make sure it doesn't work
@@ -138,6 +145,69 @@ class TestCredentialManagement(object):
         with pytest.raises(CtapError) as e:
             auth = device.sendGA(*req.toGA())
         assert e.value.code == CtapError.ERR.NO_CREDENTIALS
+
+    def test_add_delete(self, device, PinToken, CredMgmt):
+        """ Delete a credential in the 'middle' and ensure other credentials are not affected. """
+
+        rp = {"id": "example_4.com", "name": "John Doe 3"}
+        regs = []
+
+        # create 3 new RK's
+        for i in range(0,3):
+            req = FidoRequest()
+            pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
+            req = FidoRequest(
+                pin_protocol=1, pin_auth=pin_auth, options={"rk": True}, rp = rp,
+            )
+            reg = device.sendMC(*req.toMC())
+            regs.append(reg)
+
+        # Check they all enumerate
+        res = CredMgmt.enumerate_creds(regs[1].auth_data.rp_id_hash)
+        assert len(res) == 3
+
+        # delete the middle one
+        creds = CredMgmt.enumerate_creds(reg.auth_data.rp_id_hash)
+        for cred in creds:
+            if cred[7]['id'] == regs[1].auth_data.credential_data.credential_id:
+                break
+
+        assert cred[7]['id'] == regs[1].auth_data.credential_data.credential_id
+
+        cred = {"id": cred[7]['id'], "type": "public-key"}
+        CredMgmt.delete_cred( cred )
+
+        # Check one less enumerates
+        res = CredMgmt.enumerate_creds(regs[0].auth_data.rp_id_hash)
+        assert len(res) == 2
+
+    def test_multiple_creds_per_multiple_rps(self, device, PinToken, CredMgmt, MC_RK_Res):
+        res = CredMgmt.enumerate_rps()
+        assert len(res) == 2
+
+        new_rps = [
+            {"id": "new_example_1.com", "name": "Example-3-creds"},
+            {"id": "new_example_2.com", "name": "Example-3-creds"},
+            {"id": "new_example_3.com", "name": "Example-3-creds"},
+        ]
+
+        # create 3 new credentials per RP
+        for rp in new_rps:
+            for i in range(0,3):
+                req = FidoRequest()
+                pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
+                req = FidoRequest(
+                    pin_protocol=1, pin_auth=pin_auth, options={"rk": True}, rp = rp,
+                )
+                reg = device.sendMC(*req.toMC())
+
+        res = CredMgmt.enumerate_rps()
+        assert len(res) == 5
+
+        for rp in res:
+            if rp[3]['id'][:12] == 'new_example_':
+                creds = CredMgmt.enumerate_creds(sha256( rp[3]['id'].encode('utf8') ))
+                assert len(creds) == 3
 
 
     def _test_wrong_pinauth(self, device, CredMgmtWrongPinAuth, cmd):
@@ -151,6 +221,7 @@ class TestCredentialManagement(object):
         assert e.value.code == CtapError.ERR.PIN_AUTH_BLOCKED
 
         device.reboot()
+        time.sleep(.2)
 
         for i in range(2):
             with pytest.raises(CtapError) as e:
@@ -162,6 +233,7 @@ class TestCredentialManagement(object):
         assert e.value.code == CtapError.ERR.PIN_AUTH_BLOCKED
 
         device.reboot()
+        time.sleep(.2)
 
         for i in range(2):
             with pytest.raises(CtapError) as e:
@@ -177,8 +249,6 @@ class TestCredProtect(object):
         req = FidoRequest(extensions={"credProtect": 0}, options={"rk": True})
         res = resetDevice.sendMC(*req.toMC())
 
-        print('cred res:',res)
-        print('auth_data:',res.auth_data)
         if res.auth_data.extensions:
             assert "credProtect" not in res.auth_data.extensions
 
