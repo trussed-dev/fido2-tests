@@ -5,13 +5,17 @@ from fido2.ctap2 import CredentialManagement
 from tests.utils import *
 from binascii import hexlify
 
-@pytest.fixture(params=["123456"])
+PIN = "123456"
+
+@pytest.fixture(params=[PIN])
 def PinToken(request, device):
     device.reboot()
     device.reset()
     pin = request.param
     device.client.pin_protocol.set_pin(pin)
     return device.client.pin_protocol.get_pin_token(pin)
+
+
 
 
 @pytest.fixture()
@@ -39,10 +43,9 @@ def CredMgmt(device, PinToken):
     return CredentialManagement(device.ctap2, pin_protocol, PinToken)
 
 
-@pytest.fixture()
-def CredMgmtWrongPinAuth(device, PinToken):
+def CredMgmtWrongPinAuth(device, pin_token):
     pin_protocol = 1
-    wrong_pt = bytearray(PinToken)
+    wrong_pt = bytearray(pin_token)
     wrong_pt[0] = (wrong_pt[0] + 1) % 256
     return CredentialManagement(device.ctap2, pin_protocol, bytes(wrong_pt))
 
@@ -89,17 +92,17 @@ class TestCredentialManagement(object):
         res = CredMgmt.enumerate_creds(sha256(b"missing.com"))
         assert not res
 
-    def test_get_metadata_wrong_pinauth(self, device, CredMgmtWrongPinAuth, MC_RK_Res):
-        cmd = lambda: CredMgmtWrongPinAuth.get_metadata()
-        self._test_wrong_pinauth(device, CredMgmtWrongPinAuth, cmd)
+    def test_get_metadata_wrong_pinauth(self, device, MC_RK_Res, PinToken):
+        cmd = lambda credMgmt: credMgmt.get_metadata()
+        self._test_wrong_pinauth(device, cmd, PinToken)
 
-    def test_rpbegin_wrong_pinauth(self, device, CredMgmtWrongPinAuth, MC_RK_Res):
-        cmd = lambda: CredMgmtWrongPinAuth.enumerate_rps_begin()
-        self._test_wrong_pinauth(device, CredMgmtWrongPinAuth, cmd)
+    def test_rpbegin_wrong_pinauth(self, device, MC_RK_Res, PinToken):
+        cmd = lambda credMgmt: credMgmt.enumerate_rps_begin()
+        self._test_wrong_pinauth(device, cmd, PinToken)
 
-    def test_rkbegin_wrong_pinauth(self, device, CredMgmtWrongPinAuth, MC_RK_Res):
-        cmd = lambda: CredMgmtWrongPinAuth.enumerate_creds_begin(sha256(b"ssh:"))
-        self._test_wrong_pinauth(device, CredMgmtWrongPinAuth, cmd)
+    def test_rkbegin_wrong_pinauth(self, device, MC_RK_Res, PinToken):
+        cmd = lambda credMgmt: credMgmt.enumerate_creds_begin(sha256(b"ssh:"))
+        self._test_wrong_pinauth(device, cmd, PinToken)
 
     def test_rpnext_without_rpbegin(self, device, CredMgmt, MC_RK_Res):
         CredMgmt.enumerate_creds_begin(sha256(b"ssh:"))
@@ -265,38 +268,43 @@ class TestCredentialManagement(object):
             creds = CredMgmt.enumerate_creds(sha256( rp[3]['id'].encode('utf8') ))
             assert len(creds) == rp_map[rp[3]['id']]
 
-    def _test_wrong_pinauth(self, device, CredMgmtWrongPinAuth, cmd):
+    def _test_wrong_pinauth(self, device, cmd, PinToken):
+
+        credMgmt = CredMgmtWrongPinAuth(device, PinToken)
+
         for i in range(2):
             with pytest.raises(CtapError) as e:
-                cmd()
+                cmd(credMgmt)
             assert e.value.code == CtapError.ERR.PIN_AUTH_INVALID
 
         with pytest.raises(CtapError) as e:
-            cmd()
+            cmd(credMgmt)
         assert e.value.code == CtapError.ERR.PIN_AUTH_BLOCKED
 
         device.reboot()
-        time.sleep(.2)
+        credMgmt = CredMgmtWrongPinAuth(device, PinToken)
 
         for i in range(2):
+            time.sleep(.2)
             with pytest.raises(CtapError) as e:
-                cmd()
+                cmd(credMgmt)
             assert e.value.code == CtapError.ERR.PIN_AUTH_INVALID
 
         with pytest.raises(CtapError) as e:
-            cmd()
+            cmd(credMgmt)
         assert e.value.code == CtapError.ERR.PIN_AUTH_BLOCKED
 
         device.reboot()
-        time.sleep(.2)
+        credMgmt = CredMgmtWrongPinAuth(device, PinToken)
 
         for i in range(2):
+            time.sleep(.2)
             with pytest.raises(CtapError) as e:
-                cmd()
+                cmd(credMgmt)
             assert e.value.code == CtapError.ERR.PIN_AUTH_INVALID
 
         with pytest.raises(CtapError) as e:
-            cmd()
+            cmd(credMgmt)
         assert e.value.code == CtapError.ERR.PIN_BLOCKED
 
 class TestCredProtect(object):
