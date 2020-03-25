@@ -209,6 +209,61 @@ class TestCredentialManagement(object):
                 creds = CredMgmt.enumerate_creds(sha256( rp[3]['id'].encode('utf8') ))
                 assert len(creds) == 3
 
+    def test_multiple_enumeration(self, device, PinToken, MC_RK_Res, CredMgmt):
+        """ Test enumerate still works after different commands """
+
+        res = CredMgmt.enumerate_rps()
+
+        expected_enumeration = {"xakcop.com": 1, "ssh:": 1}
+
+        self._test_enumeration(CredMgmt, expected_enumeration)
+
+        new_rps = [
+            {"id": "example-2.com", "name": "Example-2-creds", "count": 2},
+            {"id": "example-5.com", "name": "Example-5-creds", "count": 5},
+            {"id": "example-4.com", "name": "Example-4-creds", "count": 4},
+        ]
+
+        # create 3 new credentials per RP
+        for rp in new_rps:
+            for i in range(0,rp['count']):
+                req = FidoRequest()
+                pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
+                req = FidoRequest(
+                    pin_protocol=1, pin_auth=pin_auth, options={"rk": True}, rp = {
+                        "id": rp["id"], "name": rp["name"]
+                    },
+                )
+                reg = device.sendMC(*req.toMC())
+
+            # Now expect creds from this RP
+            expected_enumeration[rp['id']] = rp['count']
+
+        self._test_enumeration(CredMgmt, expected_enumeration)
+        self._test_enumeration(CredMgmt, expected_enumeration)
+
+        metadata = CredMgmt.get_metadata()
+
+        self._test_enumeration(CredMgmt, expected_enumeration)
+        self._test_enumeration(CredMgmt, expected_enumeration)
+
+        # delete one
+        cred = CredMgmt.enumerate_creds(sha256( 'example-5.com'.encode('utf8') ))[0]
+        cred = {"id": cred[7]['id'], "type": "public-key"}
+        CredMgmt.delete_cred( cred )
+
+        expected_enumeration['example-5.com'] -= 1
+
+        self._test_enumeration(CredMgmt, expected_enumeration)
+        self._test_enumeration(CredMgmt, expected_enumeration)
+
+    def _test_enumeration(self, CredMgmt, rp_map):
+        res = CredMgmt.enumerate_rps()
+        assert len(rp_map.keys()) == len(res)
+
+        for rp in res:
+            creds = CredMgmt.enumerate_creds(sha256( rp[3]['id'].encode('utf8') ))
+            assert len(creds) == rp_map[rp[3]['id']]
 
     def _test_wrong_pinauth(self, device, CredMgmtWrongPinAuth, cmd):
         for i in range(2):
