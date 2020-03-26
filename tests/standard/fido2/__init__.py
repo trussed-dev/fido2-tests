@@ -46,25 +46,45 @@ def TestCborKeysSorted(cbor_obj):
     # Cbor canonical ordering of keys.
     # https://fidoalliance.org/specs/fido-v2.0-ps-20190130/fido-client-to-authenticator-protocol-v2.0-ps-20190130.html#ctap2-canonical-cbor-encoding-form
 
+    def test_cbor_level(parsed_cbor):
+        if isinstance(parsed_cbor, dict):
+            l = [x for x in parsed_cbor]
+        else:
+            l = parsed_cbor
+
+        l_sorted = sorted(l[:], key=cmp_to_key(cmp_cbor_keys))
+
+        for i in range(len(l)):
+
+            if isinstance(parsed_cbor, dict) and not isinstance(l[i], (str, int)):
+                raise ValueError(f"Cbor map key {l[i]} must be int or str for CTAP2")
+
+            if l[i] != l_sorted[i]:
+                raise ValueError(f"Cbor map item {i}: {l[i]} is out of order")
+
+            value = None
+            if isinstance(parsed_cbor, dict):
+                value = parsed_cbor[l[i]]
+            else: 
+                value = i
+
+            if value == '' or value == b'':
+                raise ValueError(f"Cbor item {i}: {l[i]} is an empty string.")
+
+            if i == '' or i == b'':
+                raise ValueError(f"Cbor index {i}: {l[i]} is an empty string.")
+
+            if isinstance(value, dict) or isinstance(value, list):
+                # print('recursing', value)
+                test_cbor_level(value)
+
+
+        return l
+
     if isinstance(cbor_obj, bytes):
-        cbor_obj = cbor.loads(cbor_obj)[0]
+        cbor_obj = cbor.decode(cbor_obj)
 
-    if isinstance(cbor_obj, dict):
-        l = [x for x in cbor_obj]
-    else:
-        l = cbor_obj
-
-    l_sorted = sorted(l[:], key=cmp_to_key(cmp_cbor_keys))
-
-    for i in range(len(l)):
-
-        if not isinstance(l[i], (str, int)):
-            raise ValueError(f"Cbor map key {l[i]} must be int or str for CTAP2")
-
-        if l[i] != l_sorted[i]:
-            raise ValueError(f"Cbor map item {i}: {l[i]} is out of order")
-
-    return l
+    test_cbor_level(cbor_obj)
 
 
 # hot patch cbor map parsing to test the order of keys in map

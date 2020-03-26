@@ -59,17 +59,28 @@ def test_self_cbor_sorting():
     TestCborKeysSorted(cbor_key_list_sorted)
 
 def test_self_cbor_integers():
+    TestCborKeysSorted([0, 1])
     with pytest.raises(ValueError) as e:
         TestCborKeysSorted([1, 0])
 
 def test_self_cbor_major_type():
+    TestCborKeysSorted([0, -1])
     with pytest.raises(ValueError) as e:
         TestCborKeysSorted([-1, 0])
 
 def test_self_cbor_strings():
+    TestCborKeysSorted(["a", "bb"])
     with pytest.raises(ValueError) as e:
         TestCborKeysSorted(["bb", "a"])
 
 def test_self_cbor_same_length_strings():
+    TestCborKeysSorted(["aa", "ab"])
+
     with pytest.raises(ValueError) as e:
         TestCborKeysSorted(["ab", "aa"])
+
+def test_self_nested_error():
+    TestCborKeysSorted({1: 1, 2:2, 3: 3, 4: { 1: 1, 2: 2, 3: {1: 1, 2: 2}}})
+
+    with pytest.raises(ValueError) as e:
+        TestCborKeysSorted({1: 1, 2:2, 3: 3, 4: { 1: 1, 2: 2, 3: {2: 2, 1: 1}}})
