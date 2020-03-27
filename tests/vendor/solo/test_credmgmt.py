@@ -1,5 +1,6 @@
 import pytest
 import time
+import random
 from fido2.ctap import CtapError
 from fido2.ctap2 import CredentialManagement
 from tests.utils import *
@@ -41,6 +42,41 @@ def MC_RK_Res(device, PinToken):
 def CredMgmt(device, PinToken):
     pin_protocol = 1
     return CredentialManagement(device.ctap2, pin_protocol, PinToken)
+
+
+def _test_enumeration(CredMgmt, rp_map):
+    "Enumerate credentials using BFS"
+    res = CredMgmt.enumerate_rps()
+    assert len(rp_map.keys()) == len(res)
+
+    for rp in res:
+        creds = CredMgmt.enumerate_creds(sha256( rp[3]['id'].encode('utf8') ))
+        assert len(creds) == rp_map[rp[3]['id']]
+
+def _test_enumeration_interleaved(CredMgmt, rp_map):
+    "Enumerate credentials using DFS"
+    first_rp = CredMgmt.enumerate_rps_begin()
+    assert len(rp_map.keys()) == first_rp[CredentialManagement.RESULT.TOTAL_RPS]
+
+    rk_count = 1
+    first_rk = CredMgmt.enumerate_creds_begin( sha256( first_rp[3]['id'].encode('utf8') ) )
+    for i in range(1, first_rk[CredentialManagement.RESULT.TOTAL_CREDENTIALS]):
+        c = CredMgmt.enumerate_creds_next()
+        rk_count += 1
+    
+    assert rk_count == rp_map[first_rp[3]['id']]
+
+    for i in range(1, first_rp[CredentialManagement.RESULT.TOTAL_RPS]):
+        next_rp = CredMgmt.enumerate_rps_next()
+
+        rk_count = 1
+        first_rk = CredMgmt.enumerate_creds_begin( sha256( next_rp[3]['id'].encode('utf8') ) )
+        for i in range(1, first_rk[CredentialManagement.RESULT.TOTAL_CREDENTIALS]):
+            c = CredMgmt.enumerate_creds_next()
+            rk_count += 1
+
+        assert rk_count == rp_map[next_rp[3]['id']]
+
 
 
 def CredMgmtWrongPinAuth(device, pin_token):
@@ -212,19 +248,20 @@ class TestCredentialManagement(object):
                 creds = CredMgmt.enumerate_creds(sha256( rp[3]['id'].encode('utf8') ))
                 assert len(creds) == 3
 
-    def test_multiple_enumeration(self, device, PinToken, MC_RK_Res, CredMgmt):
+    @pytest.mark.parametrize("enumeration_test", [_test_enumeration, _test_enumeration_interleaved])
+    def test_multiple_enumeration(self, device, PinToken, MC_RK_Res, CredMgmt, enumeration_test):
         """ Test enumerate still works after different commands """
 
         res = CredMgmt.enumerate_rps()
 
         expected_enumeration = {"xakcop.com": 1, "ssh:": 1}
 
-        self._test_enumeration(CredMgmt, expected_enumeration)
+        enumeration_test(CredMgmt, expected_enumeration)
 
         new_rps = [
             {"id": "example-2.com", "name": "Example-2-creds", "count": 2},
+            {"id": "example-1.com", "name": "Example-1-creds", "count": 1},
             {"id": "example-5.com", "name": "Example-5-creds", "count": 5},
-            {"id": "example-4.com", "name": "Example-4-creds", "count": 4},
         ]
 
         # create 3 new credentials per RP
@@ -242,31 +279,80 @@ class TestCredentialManagement(object):
             # Now expect creds from this RP
             expected_enumeration[rp['id']] = rp['count']
 
-        self._test_enumeration(CredMgmt, expected_enumeration)
-        self._test_enumeration(CredMgmt, expected_enumeration)
+        enumeration_test(CredMgmt, expected_enumeration)
+        enumeration_test(CredMgmt, expected_enumeration)
 
         metadata = CredMgmt.get_metadata()
 
-        self._test_enumeration(CredMgmt, expected_enumeration)
-        self._test_enumeration(CredMgmt, expected_enumeration)
+        enumeration_test(CredMgmt, expected_enumeration)
+        enumeration_test(CredMgmt, expected_enumeration)
 
-        # delete one
-        cred = CredMgmt.enumerate_creds(sha256( 'example-5.com'.encode('utf8') ))[0]
-        cred = {"id": cred[7]['id'], "type": "public-key"}
-        CredMgmt.delete_cred( cred )
 
-        expected_enumeration['example-5.com'] -= 1
+    @pytest.mark.parametrize("enumeration_test", [_test_enumeration, _test_enumeration_interleaved])
+    def test_multiple_enumeration_with_deletions(self, device, PinToken, MC_RK_Res, CredMgmt, enumeration_test):
+        """ Create each credential in random order.  Test enumerate still works after randomly deleting each credential"""
 
-        self._test_enumeration(CredMgmt, expected_enumeration)
-        self._test_enumeration(CredMgmt, expected_enumeration)
-
-    def _test_enumeration(self, CredMgmt, rp_map):
         res = CredMgmt.enumerate_rps()
-        assert len(rp_map.keys()) == len(res)
 
-        for rp in res:
-            creds = CredMgmt.enumerate_creds(sha256( rp[3]['id'].encode('utf8') ))
-            assert len(creds) == rp_map[rp[3]['id']]
+        expected_enumeration = {"xakcop.com": 1, "ssh:": 1}
+
+        enumeration_test(CredMgmt, expected_enumeration)
+
+        new_rps = [
+            {"id": "example-1.com", "name": "Example-1-creds", "count": 1},
+            {"id": "example-2.com", "name": "Example-2-creds", "count": 2},
+            {"id": "example-3.com", "name": "Example-3-creds", "count": 3},
+        ]
+
+        reg_requests = []
+
+        # create new credentials per RP in random order
+        for rp in new_rps:
+            for i in range(0,rp['count']):
+                req = FidoRequest()
+                pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
+                req = FidoRequest(
+                    pin_protocol=1, pin_auth=pin_auth, options={"rk": True}, rp = {
+                        "id": rp["id"], "name": rp["name"]
+                    },
+                    user = generate_user_maximum(),
+                )
+                reg_requests.append(req)
+
+        while len(reg_requests):
+            req = random.choice(reg_requests)
+            reg_requests.remove(req)
+            device.sendMC(*req.toMC())
+
+            if req.rp['id'] not in expected_enumeration:
+                expected_enumeration[req.rp['id']] = 1
+            else:
+                expected_enumeration[req.rp['id']] += 1
+
+            enumeration_test(CredMgmt, expected_enumeration)
+
+        total_creds = len(reg_requests)
+
+        while total_creds != 0:
+            rp = random.choice(list(expected_enumeration.keys()))
+
+            num = expected_enumeration[rp]
+
+            index = 0 if num == 1 else random.randint(0,num - 1)
+            cred = CredMgmt.enumerate_creds(sha256( rp.encode('utf8') ))[index]
+
+            # print('Delete %d index (%d total) cred of %s' % (index, expected_enumeration[rp], rp))
+            CredMgmt.delete_cred(  {"id": cred[7]['id'], "type": "public-key"} )
+
+            expected_enumeration[rp] -=1
+            if expected_enumeration[rp] == 0:
+                del expected_enumeration[rp]
+
+            if len(list(expected_enumeration.keys())) == 0:
+                break
+
+            enumeration_test(CredMgmt, expected_enumeration)
+
 
     def _test_wrong_pinauth(self, device, cmd, PinToken):
 
