@@ -25,7 +25,7 @@ salt4 = b"\x5a" * 16
 salt5 = b"\x96" * 64
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def MCHmacSecret(resetDevice,):
     req = FidoRequest(extensions={"hmac-secret": True}, options={"rk": True})
     res = resetDevice.sendMC(*req.toMC())
@@ -236,4 +236,50 @@ class TestHmacSecret(object):
         for x, y in zip(regs, auths):
             verify(x, y, req.cdh)
 
+
+
+class TestHmacSecretUV(object):
+    def test_hmac_secret_different_with_uv(self, device, MCHmacSecret, cipher, sharedSecret):
+        salts = [salt1]
+        key_agreement, shared_secret = sharedSecret
+        salt_enc, salt_auth = get_salt_params(cipher, shared_secret, salts)
+        req = FidoRequest(
+            extensions={"hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}}
+        )
+        auth_no_uv = device.sendGA(*req.toGA())
+        assert (auth_no_uv.auth_data.flags & (1<<2)) == 0
+
+        ext_no_uv = auth_no_uv.auth_data.extensions
+        assert ext_no_uv
+        assert "hmac-secret" in ext_no_uv
+        assert isinstance(ext_no_uv["hmac-secret"], bytes)
+        assert len(ext_no_uv["hmac-secret"]) == len(salts) * 32
+
+        verify(MCHmacSecret, auth_no_uv, req.cdh)
+
+        # Now get same auth with UV
+        pin = '1234'
+        device.client.pin_protocol.set_pin(pin)
+        pin_token = device.client.pin_protocol.get_pin_token(pin)
+        pin_auth = hmac_sha256(pin_token, req.cdh)[:16]
+
+        req = FidoRequest(
+            req,
+            pin_protocol = 1,
+            pin_auth = pin_auth,
+            extensions={"hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}}
+        )
+
+        auth_uv = device.sendGA(*req.toGA())
+        assert auth_uv.auth_data.flags & (1<<2)
+        ext_uv = auth_uv.auth_data.extensions
+        assert ext_uv
+        assert "hmac-secret" in ext_uv
+        assert isinstance(ext_uv["hmac-secret"], bytes)
+        assert len(ext_uv["hmac-secret"]) == len(salts) * 32
+
+        verify(MCHmacSecret, auth_uv, req.cdh)
+
+        # Now see if the hmac-secrets are different
+        assert ext_no_uv['hmac-secret'] != ext_uv['hmac-secret']
 
