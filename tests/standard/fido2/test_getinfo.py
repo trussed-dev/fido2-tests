@@ -29,7 +29,7 @@ def test_Check_options_field(info):
 def test_Check_uv_option(device, info):
     if "uv" in info.options:
         if info.options["uv"]:
-            device.sendMC(*FidoRequest().toMC(), options={"uv": True})
+            device.sendMC(*FidoRequest(options={"uv": True}).toMC())
 
 
 def test_Check_up_option(device, info):
