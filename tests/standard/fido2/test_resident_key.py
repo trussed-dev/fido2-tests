@@ -188,11 +188,15 @@ class TestResidentKey(object):
 
     @pytest.mark.skipif('trezor' in sys.argv, reason="Trezor does not support get_next_assertion() because it has a display.")
     @pytest.mark.skipif('solokeys' in sys.argv, reason="Initial SoloKeys model truncates displayName")
-    def test_rk_maximum_list_capacity_per_rp_nodisplay(self, device, MC_RK_Res):
+    def test_rk_maximum_list_capacity_per_rp_nodisplay(self, info, device, MC_RK_Res):
         """
         Test maximum returned capacity of the RK for the given RP
         """
-        RK_CAPACITY_PER_RP = 19
+
+        # Try to determine from get_info, or default to 19.
+        RK_CAPACITY_PER_RP = info.max_creds_in_list 
+        if not RK_CAPACITY_PER_RP: RK_CAPACITY_PER_RP = 19
+
         users = []
 
         def get_user():

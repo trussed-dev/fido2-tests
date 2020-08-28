@@ -46,15 +46,32 @@ class TestHID(object):
         r = device.send_data(CTAPHID.WINK, "")
 
     def test_cbor_no_payload(self, device):
-        with pytest.raises(CtapError) as e:
-            r = device.send_data(CTAPHID.CBOR, "")
-        assert e.value.code == CtapError.ERR.INVALID_LENGTH
+        payload = b"\x11\x11\x11\x11\x11\x11\x11\x11"
+        r = device.send_data(CTAPHID.INIT, payload)
+        capabilities = r[16]
+
+
+        if (capabilities ^ 0x04) != 0:
+            print('Implements CBOR.')
+            with pytest.raises(CtapError) as e:
+                r = device.send_data(CTAPHID.CBOR, "")
+            assert e.value.code == CtapError.ERR.INVALID_LENGTH
+        else:
+            print('CBOR is not implemented.')
 
     def test_no_data_in_u2f_msg(self, device):
-        with pytest.raises(CtapError) as e:
-            r = device.send_data(CTAPHID.MSG, "")
-            print(hexlify(r))
-        assert e.value.code == CtapError.ERR.INVALID_LENGTH
+        payload = b"\x11\x11\x11\x11\x11\x11\x11\x11"
+        r = device.send_data(CTAPHID.INIT, payload)
+        capabilities = r[16]
+
+        if (capabilities ^ 0x08) == 0:
+            print("U2F implemented.")
+            with pytest.raises(CtapError) as e:
+                r = device.send_data(CTAPHID.MSG, "")
+                print(hexlify(r))
+            assert e.value.code == CtapError.ERR.INVALID_LENGTH
+        else:
+            print("U2F not implemented.")
 
     def test_invalid_hid_cmd(self, device):
         r = device.send_data(CTAPHID.INIT, "\x11\x22\x33\x44\x55\x66\x77\x88")

@@ -154,7 +154,7 @@ class TestMakeCredential(object):
         with pytest.raises(CtapError) as e:
             device.sendMC(*req.toMC())
 
-        assert e.value.code == CtapError.ERR.MISSING_PARAMETER
+        assert e.value.code in [CtapError.ERR.MISSING_PARAMETER, CtapError.ERR.UNSUPPORTED_ALGORITHM]
 
     def test_bad_type_pubKeyCredParams_alg(self, device, MCRes):
         req = FidoRequest(MCRes, key_params=[{"alg": "7", "type": "public-key"}])
@@ -213,7 +213,7 @@ class TestMakeCredential(object):
         with pytest.raises(CtapError) as e:
             device.sendMC(*req.toMC())
 
-    def test_bad_type_exclude_list_type(self, device, MCRes, GARes):
+    def test_exclude_list_excluded(self, device, MCRes, GARes):
         req = FidoRequest(MCRes, exclude_list=GARes.request.allow_list)
 
         with pytest.raises(CtapError) as e:
