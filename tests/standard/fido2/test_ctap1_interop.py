@@ -32,11 +32,14 @@ class TestCtap2WithCtap1(object):
     def test_ctap1_authenticate(self, MCRes, device):
         req = FidoRequest()
         key_handle = MCRes.auth_data.credential_data.credential_id
-        res = device.authenticate(req.challenge, req.appid, key_handle)
+        if len(key_handle) <= 255:
+            res = device.authenticate(req.challenge, req.appid, key_handle)
 
-        credential_data = AttestedCredentialData(MCRes.auth_data.credential_data)
-        pubkey_string = b'\x04' + credential_data.public_key[-2] + credential_data.public_key[-3]
+            credential_data = AttestedCredentialData(MCRes.auth_data.credential_data)
+            pubkey_string = b'\x04' + credential_data.public_key[-2] + credential_data.public_key[-3]
 
-        res.verify(
-            req.appid, req.challenge, pubkey_string
-        )
+            res.verify(
+                req.appid, req.challenge, pubkey_string
+            )
+        else:
+            print("ctap2 credId is longer than 255 bytes, cannot use with U2F.")
