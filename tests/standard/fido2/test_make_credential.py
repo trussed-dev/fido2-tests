@@ -1,9 +1,10 @@
 import pytest
 from fido2.ctap import CtapError
 from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
+from fido2.cose import EdDSA
 from fido2.utils import hmac_sha256, sha256
 
-from tests.utils import FidoRequest
+from tests.utils import FidoRequest, verify
 
 
 class TestMakeCredential(object):
@@ -226,12 +227,32 @@ class TestMakeCredential(object):
         print("MC", req.toMC())
         device.sendMC(*req.toMC())
 
-        # self.testReset()
+    def test_eddsa(self, device):
+        mc_req = FidoRequest(key_params=[{"type": "public-key", "alg": EdDSA.ALGORITHM}])
+        try:
+            mc_res = device.sendMC(*mc_req.toMC())
+        except CtapError as e:
+            if e.code == CtapError.ERR.UNSUPPORTED_ALGORITHM:
+                print("ed25519 is not supported.  Skip this test.")
+                return
 
-        # self.testGA(
-        # "Send GA request with reset auth, expect NO_CREDENTIALS",
-        # rp["id"],
-        # cdh,
-        # allow_list,
-        # expectedError=CtapError.ERR.NO_CREDENTIALS,
-        # )
+        setattr(mc_res, "request", mc_req)
+
+        allow_list = [{"id": mc_res.auth_data.credential_data.credential_id[:], "type": "public-key"}]
+
+        ga_req = FidoRequest(allow_list=allow_list)
+        ga_res = device.sendGA(*ga_req.toGA())
+        setattr(ga_res, "request", ga_req)
+
+        try:
+            verify(mc_res, ga_res)
+        except:
+            # Print out extra details on failure
+            from binascii import hexlify
+            print('authdata', hexlify(ga_res.auth_data))
+            print('cdh', hexlify(ga_res.request.cdh))
+            print('sig', hexlify(ga_res.signature))
+            from fido2.ctap2 import AttestedCredentialData 
+            credential_data = AttestedCredentialData(mc_res.auth_data.credential_data)
+            print('public key:', hexlify(credential_data.public_key[-2]))
+            verify(mc_res, ga_res)
