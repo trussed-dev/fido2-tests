@@ -190,7 +190,7 @@ class TestDevice:
                 self.find_device(self.nfc_interface_only)
                 return
 
-        if 'solokeys' in sys.argv:
+        if 'solokeys' in sys.argv or 'solobee' in sys.argv:
             try:
                 self.dev.call(0x53 ^ 0x80,b'')
             except OSError:
