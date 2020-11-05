@@ -5,7 +5,7 @@ import ecdsa
 import hashlib
 from fido2.ctap1 import ApduError
 from fido2.ctap2 import CtapError
-from fido2.utils import hmac_sha256, sha256
+from fido2.utils import hmac_sha256, sha256, int2bytes
 try:
     from solo.client import SoloClient
 except:
@@ -15,21 +15,15 @@ from solo.commands import SoloExtension
 
 from tests.utils import shannon_entropy, verify, FidoRequest
 
-# Is there no RFC for this?
-def keypair_from_seed(seed: bytes):
-    assert isinstance(seed, bytes)
-    assert len(seed) == 32
+def convert_der_sig_to_padded_binary(der):
+    r,s = ecdsa.util.sigdecode_der(der,None)
+    r = int2bytes(r)
+    s = int2bytes(s)
 
-    P256 = ecdsa.NIST256p
-    scalar = int.from_bytes(seed, "little")
-    iterations = 0
-    while not (1 <= scalar < P256.order):
-        seed = sha256(seed)
-        scalar = int.from_bytes(seed, "little")
-        iterations += 1
+    r = (b'\x00' * (32 - len(r))) + r
+    s = (b'\x00' * (32 - len(s))) + s
+    return r + s
 
-    keypair = ecdsa.SigningKey.from_secret_exponent(scalar, P256)
-    return keypair, iterations
 
 @pytest.fixture(scope="module", params=["u2f"])
 def solo(request, device):
@@ -101,23 +95,6 @@ class TestSolo(object):
         assert(e.value.code == CtapError.ERR.INVALID_LENGTH)
 
     @pytest.mark.skipif(not IS_EXPERIMENTAL, reason="Experimental")
-    def test_load_external_key_wrong_length_ext_state(self,solo, ):
-
-        key_A = b'A' * 32
-        key_B = b'B' * 32
-        ext_state1 = b"C" * 43
-        ext_state2 = b"C" * 44
-        version = b'\x01'
-
-        ext_key_cmd = 0x62
-        print ('Enter user presence THREE times.')
-        solo.send_data_hid(ext_key_cmd, version + key_A + ext_state1)
-
-        with pytest.raises(CtapError) as e:
-            solo.send_data_hid(ext_key_cmd, version + key_A + ext_state2)
-        assert(e.value.code == CtapError.ERR.INVALID_LENGTH)
-
-    @pytest.mark.skipif(not IS_EXPERIMENTAL, reason="Experimental")
     def test_load_external_key_invalidate_old_cred(self,solo, device, MCRes, GARes):
         ext_key_cmd = 0x62
         verify(MCRes, GARes)
@@ -134,7 +111,7 @@ class TestSolo(object):
 
     @pytest.mark.skipif(not IS_EXPERIMENTAL, reason="Experimental")
     def test_load_external_key(self,solo, device,):
-        
+
         key_A = b'A' * 32
         key_B = b'B' * 32
         ext_state = b"I'm a dicekey key"
@@ -169,7 +146,7 @@ class TestSolo(object):
 
     @pytest.mark.skipif(not IS_EXPERIMENTAL, reason="Experimental")
     def test_ext_state_in_credential_id(self,solo, device,):
-        
+
         key_A = b'A' * 32
         ext_state = b"I'm a dicekey key abc1234!!@@##"
         version = b'\x01'
@@ -186,7 +163,8 @@ class TestSolo(object):
 
     @pytest.mark.skipif(not IS_EXPERIMENTAL, reason="Experimental")
     def test_backup_credential_is_generated_correctly(self,solo, device,):
-        
+        import seedweed
+        from binascii import hexlify
         key_A = b'A' * 32
         ext_state = b"I'm a dicekey key!"
         version = b'\x01'
@@ -199,34 +177,18 @@ class TestSolo(object):
         mc_A_req = FidoRequest()
         mc_A_res = device.sendMC(*mc_A_req.toMC())
 
+        rpIdHash = sha256(mc_A_req.rp["id"].encode("utf8"))
+
         credId = mc_A_res.auth_data.credential_data.credential_id
-        uniqueId = credId[1:1+32]
 
-        extStateInCredId = credId[33:33 + len(ext_state)]
+        (
+            uniqueId,
+            extStateInCredId,
+            credMacInCredId,
+        ) = seedweed.nonce_extstate_mac_from_credential_id(credId)
 
-        soloExtStateFieldSize = 43
-        credMacInCredId = credId[33 + soloExtStateFieldSize: 33 + soloExtStateFieldSize + 32]
-
-        rpIdHash = sha256(mc_A_req.rp['id'].encode('utf8'))
-        print("rp:", mc_A_req.rp['id'])
-        from binascii import hexlify
-        print("rpIdHash:", hexlify(rpIdHash))
-        print("uniqueId:", hexlify(uniqueId))
-
-        assert version[0] == credId[0]
-        assert ext_state == extStateInCredId
-
+        seedweed.validate_credential_id(key_A, credId, rpIdHash)
         credMac = hmac_sha256(key_A, rpIdHash + version + uniqueId + ext_state)
-        print("recomputed mac:", hexlify(credMac))
-        print("recv'd mac    :", hexlify(credMacInCredId))
-
-        assert credMac == credMacInCredId
-
-        credentialSeed = hmac_sha256(key_A, credMac)
-        print('Computed private key:', hexlify(credentialSeed))
-        key_pair = keypair_from_seed(credentialSeed)
-        assert key_pair[1] == 0
-        key_pair = key_pair[0]
 
         allow_list = [{"id": mc_A_res.auth_data.credential_data.credential_id, "type": "public-key"}]
         ga_req = FidoRequest(allow_list = allow_list)
@@ -235,10 +197,63 @@ class TestSolo(object):
 
         verify(mc_A_res, ga_res, ga_req.cdh)
 
-        key_pair.verifying_key.verify(
+        # Independently create the key and verify
+        _, _, keypair, iterations = seedweed.keypair_from_seed_mac(
+            key_A, credMac
+        )
+        assert iterations == 1
+        keypair.verifying_key.verify(
             ga_res.signature,
             ga_res.auth_data + ga_req.cdh,
             sigdecode=ecdsa.util.sigdecode_der,
             hashfunc=hashlib.sha256
         )
 
+    # @pytest.mark.skipif(False, reason="Experimental")
+    @pytest.mark.skipif(not IS_EXPERIMENTAL, reason="Experimental")
+    def test_seedweed_vectors_make_credential(self,solo, device,):
+        import seedweed
+        from binascii import hexlify
+        version = b'\x01'
+
+        for i,v in enumerate(seedweed.load_test_vectors(shortlist=True)):
+            print (f'{i}) Enter user presence THREE times.')
+            ext_key_cmd = 0x62
+            solo.send_data_hid(ext_key_cmd, version + v['seed'] + b'')
+
+            mc_req = FidoRequest(rp = {"id": v['rp_id'], "name": "seedweed"})
+            mc_res = device.sendMC(*mc_req.toMC())
+            seedweed.conformance.verify_make_credential(
+                v,
+                mc_res.auth_data.credential_data.credential_id,
+                mc_res.auth_data.credential_data.public_key[-2] +
+                mc_res.auth_data.credential_data.public_key[-3]
+            )
+
+    @pytest.mark.skipif(not IS_EXPERIMENTAL, reason="Experimental")
+    def test_seedweed_vectors_get_assertion(self,solo, device,):
+        import seedweed
+        from binascii import hexlify
+        version = b'\x01'
+
+        for i,v in enumerate(seedweed.load_test_vectors(shortlist=True)):
+            print (f'{i}) Enter user presence THREE times.')
+            ext_key_cmd = 0x62
+            solo.send_data_hid(ext_key_cmd, version + v['seed'] + b'')
+
+            allow_list = [{"id": v['credential_id'], "type": "public-key"}]
+            ga_req = FidoRequest(rp = {"id": v['rp_id'], "name": "seedweed"}, allow_list = allow_list)
+            ga_res = device.sendGA(*ga_req.toGA())
+            # print(v)
+            # print(ga_res.auth_data + ga_req.cdh)
+
+            # assert ga_res.auth_data.rp_id_hash == reg.auth_data.rp_id_hash
+            assert ga_res.credential["id"] == v['credential_id']
+            # reg.auth_data.credential_data.credential_id
+
+            seedweed.conformance.verify_get_assertion(
+                v,
+                convert_der_sig_to_padded_binary(ga_res.signature),
+                # ga_res.signature,
+                ga_res.auth_data + ga_req.cdh,
+            )
