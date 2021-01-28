@@ -26,7 +26,9 @@ salt5 = b"\x96" * 64
 
 
 @pytest.fixture(scope="class")
-def MCHmacSecret(resetDevice,):
+def MCHmacSecret(
+    resetDevice,
+):
     req = FidoRequest(extensions={"hmac-secret": True}, options={"rk": True})
     res = resetDevice.sendMC(*req.toMC())
     setattr(res, "request", req)
@@ -45,10 +47,11 @@ def cipher(device, sharedSecret):
         algorithms.AES(shared_secret), modes.CBC(b"\x00" * 16), default_backend()
     )
 
+
 @pytest.fixture(scope="class")
 def fixed_users():
     """ Fixed set of users to enable accounts to get overwritten """
-    return [ generate_user() for i in range(0, 100) ]
+    return [generate_user() for i in range(0, 100)]
 
 
 class TestHmacSecret(object):
@@ -68,7 +71,9 @@ class TestHmacSecret(object):
         pass
 
     @pytest.mark.parametrize("salts", [(salt1,), (salt1, salt2)])
-    def test_hmac_secret_entropy(self, device, MCHmacSecret, cipher, sharedSecret, salts):
+    def test_hmac_secret_entropy(
+        self, device, MCHmacSecret, cipher, sharedSecret, salts
+    ):
         key_agreement, shared_secret = sharedSecret
         salt_enc, salt_auth = get_salt_params(cipher, shared_secret, salts)
         req = FidoRequest(
@@ -121,8 +126,12 @@ class TestHmacSecret(object):
 
     def test_hmac_secret_sanity(self, device, MCHmacSecret, cipher, sharedSecret):
         output1 = self.get_output(device, MCHmacSecret, cipher, sharedSecret, (salt1,))
-        output12 = self.get_output(device, MCHmacSecret, cipher, sharedSecret, (salt1, salt2))
-        output21 = self.get_output(device, MCHmacSecret, cipher, sharedSecret, (salt2, salt1))
+        output12 = self.get_output(
+            device, MCHmacSecret, cipher, sharedSecret, (salt1, salt2)
+        )
+        output21 = self.get_output(
+            device, MCHmacSecret, cipher, sharedSecret, (salt2, salt1)
+        )
 
         assert output12[0] == output1
         assert output21[1] == output1
@@ -193,7 +202,9 @@ class TestHmacSecret(object):
         assert e.value.code == CtapError.ERR.INVALID_LENGTH
 
     @pytest.mark.parametrize("salts", [(salt1,), (salt1, salt2)])
-    def test_get_next_assertion_has_extension(self, device, MCHmacSecret, cipher, sharedSecret, salts, fixed_users):
+    def test_get_next_assertion_has_extension(
+        self, device, MCHmacSecret, cipher, sharedSecret, salts, fixed_users
+    ):
         """ Check that get_next_assertion properly returns extension information for multiple accounts. """
         accounts = 3
         regs = []
@@ -201,10 +212,12 @@ class TestHmacSecret(object):
         rp = {"id": "example_2.org", "name": "ExampleRP_2"}
 
         for i in range(0, accounts):
-            req = FidoRequest(extensions={"hmac-secret": True},
-                              options={"rk": True},
-                              rp = rp,
-                              user = fixed_users[i])
+            req = FidoRequest(
+                extensions={"hmac-secret": True},
+                options={"rk": True},
+                rp=rp,
+                user=fixed_users[i],
+            )
             res = device.sendMC(*req.toMC())
             regs.append(res)
 
@@ -212,7 +225,7 @@ class TestHmacSecret(object):
         salt_enc, salt_auth = get_salt_params(cipher, shared_secret, salts)
         req = FidoRequest(
             extensions={"hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}},
-            rp = rp,
+            rp=rp,
         )
 
         auth = device.sendGA(*req.toGA())
@@ -223,7 +236,7 @@ class TestHmacSecret(object):
             auths.append(device.ctap2.get_next_assertion())
 
         for x in auths:
-            assert x.auth_data.flags & (1 << 7)       # has extension
+            assert x.auth_data.flags & (1 << 7)  # has extension
             ext = auth.auth_data.extensions
             assert ext
             assert "hmac-secret" in ext
@@ -237,9 +250,10 @@ class TestHmacSecret(object):
             verify(x, y, req.cdh)
 
 
-
 class TestHmacSecretUV(object):
-    def test_hmac_secret_different_with_uv(self, device, MCHmacSecret, cipher, sharedSecret):
+    def test_hmac_secret_different_with_uv(
+        self, device, MCHmacSecret, cipher, sharedSecret
+    ):
         salts = [salt1]
         key_agreement, shared_secret = sharedSecret
         salt_enc, salt_auth = get_salt_params(cipher, shared_secret, salts)
@@ -247,7 +261,7 @@ class TestHmacSecretUV(object):
             extensions={"hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}}
         )
         auth_no_uv = device.sendGA(*req.toGA())
-        assert (auth_no_uv.auth_data.flags & (1<<2)) == 0
+        assert (auth_no_uv.auth_data.flags & (1 << 2)) == 0
 
         ext_no_uv = auth_no_uv.auth_data.extensions
         assert ext_no_uv
@@ -258,20 +272,20 @@ class TestHmacSecretUV(object):
         verify(MCHmacSecret, auth_no_uv, req.cdh)
 
         # Now get same auth with UV
-        pin = '1234'
+        pin = "1234"
         device.client.pin_protocol.set_pin(pin)
         pin_token = device.client.pin_protocol.get_pin_token(pin)
         pin_auth = hmac_sha256(pin_token, req.cdh)[:16]
 
         req = FidoRequest(
             req,
-            pin_protocol = 1,
-            pin_auth = pin_auth,
-            extensions={"hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}}
+            pin_protocol=1,
+            pin_auth=pin_auth,
+            extensions={"hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}},
         )
 
         auth_uv = device.sendGA(*req.toGA())
-        assert auth_uv.auth_data.flags & (1<<2)
+        assert auth_uv.auth_data.flags & (1 << 2)
         ext_uv = auth_uv.auth_data.extensions
         assert ext_uv
         assert "hmac-secret" in ext_uv
@@ -281,5 +295,4 @@ class TestHmacSecretUV(object):
         verify(MCHmacSecret, auth_uv, req.cdh)
 
         # Now see if the hmac-secrets are different
-        assert ext_no_uv['hmac-secret'] != ext_uv['hmac-secret']
-
+        assert ext_no_uv["hmac-secret"] != ext_uv["hmac-secret"]
