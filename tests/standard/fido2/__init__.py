@@ -4,6 +4,7 @@ from functools import cmp_to_key
 import tests
 from fido2 import cbor
 
+
 def cbor_key_to_representative(key):
     if isinstance(key, int):
         if key >= 0:
@@ -58,11 +59,23 @@ def TestCborKeysSorted(cbor_obj):
 
     for i in range(len(l)):
 
-        if not isinstance(l[i], (str, int)):
+        if isinstance(cbor_obj, dict) and not isinstance(l[i], (str, int)):
             raise ValueError(f"Cbor map key {l[i]} must be int or str for CTAP2")
 
         if l[i] != l_sorted[i]:
             raise ValueError(f"Cbor map item {i}: {l[i]} is out of order")
+
+        # value = None
+        if isinstance(cbor_obj, dict):
+            value = cbor_obj[l[i]]
+        else:
+            value = l[i]
+
+        if isinstance(value, dict):
+            TestCborKeysSorted(cbor_obj[l[i]])
+
+        elif isinstance(value, list):
+            TestCborKeysSorted(cbor_obj[l[i]])
 
     return l
 
