@@ -8,10 +8,8 @@ import pytest
 from fido2.ctap import CtapError
 from fido2.hid import CTAPHID
 
-@pytest.mark.skipif(
-    '--nfc' in sys.argv,
-    reason="Wrong transport"
-)
+
+@pytest.mark.skipif("--nfc" in sys.argv, reason="Wrong transport")
 class TestHID(object):
     def test_long_ping(self, device):
         amt = 1000
@@ -50,14 +48,13 @@ class TestHID(object):
         r = device.send_data(CTAPHID.INIT, payload)
         capabilities = r[16]
 
-
         if (capabilities ^ 0x04) != 0:
-            print('Implements CBOR.')
+            print("Implements CBOR.")
             with pytest.raises(CtapError) as e:
                 r = device.send_data(CTAPHID.CBOR, "")
             assert e.value.code == CtapError.ERR.INVALID_LENGTH
         else:
-            print('CBOR is not implemented.')
+            print("CBOR is not implemented.")
 
     def test_no_data_in_u2f_msg(self, device):
         payload = b"\x11\x11\x11\x11\x11\x11\x11\x11"

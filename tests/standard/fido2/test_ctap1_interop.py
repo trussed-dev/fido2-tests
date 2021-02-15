@@ -27,6 +27,7 @@ class TestCtap1WithCtap2(object):
         auth.verify(req.cdh, credential_data.public_key)
         assert auth.credential["id"] == RegRes.key_handle
 
+
 # Test FIDO2 register works with U2F auth
 class TestCtap2WithCtap1(object):
     def test_ctap1_authenticate(self, MCRes, device):
@@ -36,10 +37,12 @@ class TestCtap2WithCtap1(object):
             res = device.authenticate(req.challenge, req.appid, key_handle)
 
             credential_data = AttestedCredentialData(MCRes.auth_data.credential_data)
-            pubkey_string = b'\x04' + credential_data.public_key[-2] + credential_data.public_key[-3]
-
-            res.verify(
-                req.appid, req.challenge, pubkey_string
+            pubkey_string = (
+                b"\x04"
+                + credential_data.public_key[-2]
+                + credential_data.public_key[-3]
             )
+
+            res.verify(req.appid, req.challenge, pubkey_string)
         else:
             print("ctap2 credId is longer than 255 bytes, cannot use with U2F.")

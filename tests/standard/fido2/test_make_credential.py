@@ -155,7 +155,10 @@ class TestMakeCredential(object):
         with pytest.raises(CtapError) as e:
             device.sendMC(*req.toMC())
 
-        assert e.value.code in [CtapError.ERR.MISSING_PARAMETER, CtapError.ERR.UNSUPPORTED_ALGORITHM]
+        assert e.value.code in [
+            CtapError.ERR.MISSING_PARAMETER,
+            CtapError.ERR.UNSUPPORTED_ALGORITHM,
+        ]
 
     def test_bad_type_pubKeyCredParams_alg(self, device, MCRes):
         req = FidoRequest(MCRes, key_params=[{"alg": "7", "type": "public-key"}])
@@ -228,7 +231,9 @@ class TestMakeCredential(object):
         device.sendMC(*req.toMC())
 
     def test_eddsa(self, device):
-        mc_req = FidoRequest(key_params=[{"type": "public-key", "alg": EdDSA.ALGORITHM}])
+        mc_req = FidoRequest(
+            key_params=[{"type": "public-key", "alg": EdDSA.ALGORITHM}]
+        )
         try:
             mc_res = device.sendMC(*mc_req.toMC())
         except CtapError as e:
@@ -238,7 +243,12 @@ class TestMakeCredential(object):
 
         setattr(mc_res, "request", mc_req)
 
-        allow_list = [{"id": mc_res.auth_data.credential_data.credential_id[:], "type": "public-key"}]
+        allow_list = [
+            {
+                "id": mc_res.auth_data.credential_data.credential_id[:],
+                "type": "public-key",
+            }
+        ]
 
         ga_req = FidoRequest(allow_list=allow_list)
         ga_res = device.sendGA(*ga_req.toGA())
@@ -249,10 +259,12 @@ class TestMakeCredential(object):
         except:
             # Print out extra details on failure
             from binascii import hexlify
-            print('authdata', hexlify(ga_res.auth_data))
-            print('cdh', hexlify(ga_res.request.cdh))
-            print('sig', hexlify(ga_res.signature))
-            from fido2.ctap2 import AttestedCredentialData 
+
+            print("authdata", hexlify(ga_res.auth_data))
+            print("cdh", hexlify(ga_res.request.cdh))
+            print("sig", hexlify(ga_res.signature))
+            from fido2.ctap2 import AttestedCredentialData
+
             credential_data = AttestedCredentialData(mc_res.auth_data.credential_data)
-            print('public key:', hexlify(credential_data.public_key[-2]))
+            print("public key:", hexlify(credential_data.public_key[-2]))
             verify(mc_res, ga_res)

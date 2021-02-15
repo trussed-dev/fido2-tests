@@ -25,7 +25,10 @@ def test_Check_options_field(info):
         assert info.options[x] in [True, False]
 
 
-@pytest.mark.skipif('trezor' in sys.argv, reason="User verification flag is intentionally set to true on Trezor even when user verification is not configured. (Otherwise some services refuse registration without giving a reason.)")
+@pytest.mark.skipif(
+    "trezor" in sys.argv,
+    reason="User verification flag is intentionally set to true on Trezor even when user verification is not configured. (Otherwise some services refuse registration without giving a reason.)",
+)
 def test_Check_uv_option(device, info):
     if "uv" in info.options:
         if info.options["uv"]:
@@ -38,6 +41,7 @@ def test_Check_up_option(device, info):
             with pytest.raises(CtapError) as e:
                 device.sendMC(*FidoRequest(options={"up": True}).toMC())
             assert e.value.code == CtapError.ERR.INVALID_OPTION
+
 
 def test_self_cbor_sorting():
     cbor_key_list_sorted = [
@@ -58,17 +62,21 @@ def test_self_cbor_sorting():
     ]
     TestCborKeysSorted(cbor_key_list_sorted)
 
+
 def test_self_cbor_integers():
     with pytest.raises(ValueError) as e:
         TestCborKeysSorted([1, 0])
+
 
 def test_self_cbor_major_type():
     with pytest.raises(ValueError) as e:
         TestCborKeysSorted([-1, 0])
 
+
 def test_self_cbor_strings():
     with pytest.raises(ValueError) as e:
         TestCborKeysSorted(["bb", "a"])
+
 
 def test_self_cbor_same_length_strings():
     with pytest.raises(ValueError) as e:
