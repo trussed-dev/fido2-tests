@@ -61,6 +61,23 @@ class TestResidentKey(object):
         else:
             assert MC_RK_Res.request.user == GA_RK_Res.user
 
+    def test_user_info_returned_when_using_allowlist(self, device, MC_RK_Res, GA_RK_Res):
+        assert "id" in GA_RK_Res.user.keys()
+        
+        allow_list = [
+            {
+                "id": MC_RK_Res.auth_data.credential_data.credential_id[:],
+                "type": "public-key",
+            }
+        ]
+
+        ga_req = FidoRequest(allow_list=allow_list)
+        ga_res = device.sendGA(*ga_req.toGA())
+        setattr(ga_res, "request", ga_req)
+        verify(MC_RK_Res, ga_res)
+
+        assert MC_RK_Res.request.user["id"] == ga_res.user["id"]
+
     @pytest.mark.skipif(
         "trezor" in sys.argv,
         reason="Trezor does not support get_next_assertion() because it has a display.",
