@@ -8,6 +8,7 @@ from binascii import hexlify
 
 PIN = "123456"
 
+
 @pytest.fixture(params=[PIN])
 def PinToken(request, device):
     device.reboot()
@@ -17,15 +18,17 @@ def PinToken(request, device):
     return device.client.pin_protocol.get_pin_token(pin)
 
 
-
-
 @pytest.fixture()
 def MC_RK_Res(device, PinToken):
     req = FidoRequest()
     pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
     rp = {"id": "ssh:", "name": "Bate Goiko"}
     req = FidoRequest(
-        request=None, pin_protocol=1, pin_auth=pin_auth, rp=rp, options={"rk": True},
+        request=None,
+        pin_protocol=1,
+        pin_auth=pin_auth,
+        rp=rp,
+        options={"rk": True},
     )
     device.sendMC(*req.toMC())
 
@@ -33,7 +36,11 @@ def MC_RK_Res(device, PinToken):
     pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
     rp = {"id": "xakcop.com", "name": "John Doe"}
     req = FidoRequest(
-        request=None, pin_protocol=1, pin_auth=pin_auth, rp=rp, options={"rk": True},
+        request=None,
+        pin_protocol=1,
+        pin_auth=pin_auth,
+        rp=rp,
+        options={"rk": True},
     )
     device.sendMC(*req.toMC())
 
@@ -50,8 +57,9 @@ def _test_enumeration(CredMgmt, rp_map):
     assert len(rp_map.keys()) == len(res)
 
     for rp in res:
-        creds = CredMgmt.enumerate_creds(sha256( rp[3]['id'].encode('utf8') ))
-        assert len(creds) == rp_map[rp[3]['id']]
+        creds = CredMgmt.enumerate_creds(sha256(rp[3]["id"].encode("utf8")))
+        assert len(creds) == rp_map[rp[3]["id"]]
+
 
 def _test_enumeration_interleaved(CredMgmt, rp_map):
     "Enumerate credentials using DFS"
@@ -59,24 +67,25 @@ def _test_enumeration_interleaved(CredMgmt, rp_map):
     assert len(rp_map.keys()) == first_rp[CredentialManagement.RESULT.TOTAL_RPS]
 
     rk_count = 1
-    first_rk = CredMgmt.enumerate_creds_begin( sha256( first_rp[3]['id'].encode('utf8') ) )
+    first_rk = CredMgmt.enumerate_creds_begin(sha256(first_rp[3]["id"].encode("utf8")))
     for i in range(1, first_rk[CredentialManagement.RESULT.TOTAL_CREDENTIALS]):
         c = CredMgmt.enumerate_creds_next()
         rk_count += 1
-    
-    assert rk_count == rp_map[first_rp[3]['id']]
+
+    assert rk_count == rp_map[first_rp[3]["id"]]
 
     for i in range(1, first_rp[CredentialManagement.RESULT.TOTAL_RPS]):
         next_rp = CredMgmt.enumerate_rps_next()
 
         rk_count = 1
-        first_rk = CredMgmt.enumerate_creds_begin( sha256( next_rp[3]['id'].encode('utf8') ) )
+        first_rk = CredMgmt.enumerate_creds_begin(
+            sha256(next_rp[3]["id"].encode("utf8"))
+        )
         for i in range(1, first_rk[CredentialManagement.RESULT.TOTAL_CREDENTIALS]):
             c = CredMgmt.enumerate_creds_next()
             rk_count += 1
 
-        assert rk_count == rp_map[next_rp[3]['id']]
-
+        assert rk_count == rp_map[next_rp[3]["id"]]
 
 
 def CredMgmtWrongPinAuth(device, pin_token):
@@ -85,6 +94,7 @@ def CredMgmtWrongPinAuth(device, pin_token):
     wrong_pt[0] = (wrong_pt[0] + 1) % 256
     return CredentialManagement(device.ctap2, pin_protocol, bytes(wrong_pt))
 
+
 def assert_cred_response_has_all_fields(cred_res):
     for i in (
         CredentialManagement.RESULT.USER,
@@ -92,17 +102,18 @@ def assert_cred_response_has_all_fields(cred_res):
         CredentialManagement.RESULT.PUBLIC_KEY,
         CredentialManagement.RESULT.TOTAL_CREDENTIALS,
         CredentialManagement.RESULT.CRED_PROTECT,
-        ):
-        assert( i in cred_res )
+    ):
+        assert i in cred_res
+
 
 class TestCredentialManagement(object):
     def test_get_info(self, info):
-        assert('credMgmt' in info.options)
-        assert(info.options['credMgmt'] == True)
-        assert(0x7 in info)
-        assert(info[0x7] > 1)
-        assert(0x8 in info)
-        assert(info[0x8] > 1)
+        assert "credMgmt" in info.options
+        assert info.options["credMgmt"] == True
+        assert 0x7 in info
+        assert info[0x7] > 1
+        assert 0x8 in info
+        assert info[0x8] > 1
 
     def test_get_metadata(self, CredMgmt, MC_RK_Res):
         metadata = CredMgmt.get_metadata()
@@ -159,12 +170,15 @@ class TestCredentialManagement(object):
         pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
         rp = {"id": "example_3.com", "name": "John Doe 2"}
         req = FidoRequest(
-            pin_protocol=1, pin_auth=pin_auth, options={"rk": True}, rp = rp,
+            pin_protocol=1,
+            pin_auth=pin_auth,
+            options={"rk": True},
+            rp=rp,
         )
         reg = device.sendMC(*req.toMC())
 
         # make sure it works
-        req = FidoRequest(rp = rp)
+        req = FidoRequest(rp=rp)
         auth = device.sendGA(*req.toGA())
 
         verify(reg, auth, req.cdh)
@@ -172,15 +186,15 @@ class TestCredentialManagement(object):
         # get the ID from enumeration
         creds = CredMgmt.enumerate_creds(reg.auth_data.rp_id_hash)
         for cred in creds:
-            if cred[7]['id'] == reg.auth_data.credential_data.credential_id:
+            if cred[7]["id"] == reg.auth_data.credential_data.credential_id:
                 break
 
         # delete it
-        cred = {"id": cred[7]['id'], "type": "public-key"}
-        CredMgmt.delete_cred( cred )
+        cred = {"id": cred[7]["id"], "type": "public-key"}
+        CredMgmt.delete_cred(cred)
 
         # make sure it doesn't work
-        req = FidoRequest(rp = rp)
+        req = FidoRequest(rp=rp)
         with pytest.raises(CtapError) as e:
             auth = device.sendGA(*req.toGA())
         assert e.value.code == CtapError.ERR.NO_CREDENTIALS
@@ -192,11 +206,14 @@ class TestCredentialManagement(object):
         regs = []
 
         # create 3 new RK's
-        for i in range(0,3):
+        for i in range(0, 3):
             req = FidoRequest()
             pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
             req = FidoRequest(
-                pin_protocol=1, pin_auth=pin_auth, options={"rk": True}, rp = rp,
+                pin_protocol=1,
+                pin_auth=pin_auth,
+                options={"rk": True},
+                rp=rp,
             )
             reg = device.sendMC(*req.toMC())
             regs.append(reg)
@@ -208,19 +225,21 @@ class TestCredentialManagement(object):
         # delete the middle one
         creds = CredMgmt.enumerate_creds(reg.auth_data.rp_id_hash)
         for cred in creds:
-            if cred[7]['id'] == regs[1].auth_data.credential_data.credential_id:
+            if cred[7]["id"] == regs[1].auth_data.credential_data.credential_id:
                 break
 
-        assert cred[7]['id'] == regs[1].auth_data.credential_data.credential_id
+        assert cred[7]["id"] == regs[1].auth_data.credential_data.credential_id
 
-        cred = {"id": cred[7]['id'], "type": "public-key"}
-        CredMgmt.delete_cred( cred )
+        cred = {"id": cred[7]["id"], "type": "public-key"}
+        CredMgmt.delete_cred(cred)
 
         # Check one less enumerates
         res = CredMgmt.enumerate_creds(regs[0].auth_data.rp_id_hash)
         assert len(res) == 2
 
-    def test_multiple_creds_per_multiple_rps(self, device, PinToken, CredMgmt, MC_RK_Res):
+    def test_multiple_creds_per_multiple_rps(
+        self, device, PinToken, CredMgmt, MC_RK_Res
+    ):
         res = CredMgmt.enumerate_rps()
         assert len(res) == 2
 
@@ -232,11 +251,14 @@ class TestCredentialManagement(object):
 
         # create 3 new credentials per RP
         for rp in new_rps:
-            for i in range(0,3):
+            for i in range(0, 3):
                 req = FidoRequest()
                 pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
                 req = FidoRequest(
-                    pin_protocol=1, pin_auth=pin_auth, options={"rk": True}, rp = rp,
+                    pin_protocol=1,
+                    pin_auth=pin_auth,
+                    options={"rk": True},
+                    rp=rp,
                 )
                 reg = device.sendMC(*req.toMC())
 
@@ -244,12 +266,16 @@ class TestCredentialManagement(object):
         assert len(res) == 5
 
         for rp in res:
-            if rp[3]['id'][:12] == 'new_example_':
-                creds = CredMgmt.enumerate_creds(sha256( rp[3]['id'].encode('utf8') ))
+            if rp[3]["id"][:12] == "new_example_":
+                creds = CredMgmt.enumerate_creds(sha256(rp[3]["id"].encode("utf8")))
                 assert len(creds) == 3
 
-    @pytest.mark.parametrize("enumeration_test", [_test_enumeration, _test_enumeration_interleaved])
-    def test_multiple_enumeration(self, device, PinToken, MC_RK_Res, CredMgmt, enumeration_test):
+    @pytest.mark.parametrize(
+        "enumeration_test", [_test_enumeration, _test_enumeration_interleaved]
+    )
+    def test_multiple_enumeration(
+        self, device, PinToken, MC_RK_Res, CredMgmt, enumeration_test
+    ):
         """ Test enumerate still works after different commands """
 
         res = CredMgmt.enumerate_rps()
@@ -266,18 +292,19 @@ class TestCredentialManagement(object):
 
         # create 3 new credentials per RP
         for rp in new_rps:
-            for i in range(0,rp['count']):
+            for i in range(0, rp["count"]):
                 req = FidoRequest()
                 pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
                 req = FidoRequest(
-                    pin_protocol=1, pin_auth=pin_auth, options={"rk": True}, rp = {
-                        "id": rp["id"], "name": rp["name"]
-                    },
+                    pin_protocol=1,
+                    pin_auth=pin_auth,
+                    options={"rk": True},
+                    rp={"id": rp["id"], "name": rp["name"]},
                 )
                 reg = device.sendMC(*req.toMC())
 
             # Now expect creds from this RP
-            expected_enumeration[rp['id']] = rp['count']
+            expected_enumeration[rp["id"]] = rp["count"]
 
         enumeration_test(CredMgmt, expected_enumeration)
         enumeration_test(CredMgmt, expected_enumeration)
@@ -287,9 +314,12 @@ class TestCredentialManagement(object):
         enumeration_test(CredMgmt, expected_enumeration)
         enumeration_test(CredMgmt, expected_enumeration)
 
-
-    @pytest.mark.parametrize("enumeration_test", [_test_enumeration, _test_enumeration_interleaved])
-    def test_multiple_enumeration_with_deletions(self, device, PinToken, MC_RK_Res, CredMgmt, enumeration_test):
+    @pytest.mark.parametrize(
+        "enumeration_test", [_test_enumeration, _test_enumeration_interleaved]
+    )
+    def test_multiple_enumeration_with_deletions(
+        self, device, PinToken, MC_RK_Res, CredMgmt, enumeration_test
+    ):
         """ Create each credential in random order.  Test enumerate still works after randomly deleting each credential"""
 
         res = CredMgmt.enumerate_rps()
@@ -308,14 +338,15 @@ class TestCredentialManagement(object):
 
         # create new credentials per RP in random order
         for rp in new_rps:
-            for i in range(0,rp['count']):
+            for i in range(0, rp["count"]):
                 req = FidoRequest()
                 pin_auth = hmac_sha256(PinToken, req.cdh)[:16]
                 req = FidoRequest(
-                    pin_protocol=1, pin_auth=pin_auth, options={"rk": True}, rp = {
-                        "id": rp["id"], "name": rp["name"]
-                    },
-                    user = generate_user_maximum(),
+                    pin_protocol=1,
+                    pin_auth=pin_auth,
+                    options={"rk": True},
+                    rp={"id": rp["id"], "name": rp["name"]},
+                    user=generate_user_maximum(),
                 )
                 reg_requests.append(req)
 
@@ -324,10 +355,10 @@ class TestCredentialManagement(object):
             reg_requests.remove(req)
             device.sendMC(*req.toMC())
 
-            if req.rp['id'] not in expected_enumeration:
-                expected_enumeration[req.rp['id']] = 1
+            if req.rp["id"] not in expected_enumeration:
+                expected_enumeration[req.rp["id"]] = 1
             else:
-                expected_enumeration[req.rp['id']] += 1
+                expected_enumeration[req.rp["id"]] += 1
 
             enumeration_test(CredMgmt, expected_enumeration)
 
@@ -338,13 +369,13 @@ class TestCredentialManagement(object):
 
             num = expected_enumeration[rp]
 
-            index = 0 if num == 1 else random.randint(0,num - 1)
-            cred = CredMgmt.enumerate_creds(sha256( rp.encode('utf8') ))[index]
+            index = 0 if num == 1 else random.randint(0, num - 1)
+            cred = CredMgmt.enumerate_creds(sha256(rp.encode("utf8")))[index]
 
             # print('Delete %d index (%d total) cred of %s' % (index, expected_enumeration[rp], rp))
-            CredMgmt.delete_cred(  {"id": cred[7]['id'], "type": "public-key"} )
+            CredMgmt.delete_cred({"id": cred[7]["id"], "type": "public-key"})
 
-            expected_enumeration[rp] -=1
+            expected_enumeration[rp] -= 1
             if expected_enumeration[rp] == 0:
                 del expected_enumeration[rp]
 
@@ -352,7 +383,6 @@ class TestCredentialManagement(object):
                 break
 
             enumeration_test(CredMgmt, expected_enumeration)
-
 
     def _test_wrong_pinauth(self, device, cmd, PinToken):
 
@@ -371,7 +401,7 @@ class TestCredentialManagement(object):
         credMgmt = CredMgmtWrongPinAuth(device, PinToken)
 
         for i in range(2):
-            time.sleep(.2)
+            time.sleep(0.2)
             with pytest.raises(CtapError) as e:
                 cmd(credMgmt)
             assert e.value.code == CtapError.ERR.PIN_AUTH_INVALID
@@ -384,7 +414,7 @@ class TestCredentialManagement(object):
         credMgmt = CredMgmtWrongPinAuth(device, PinToken)
 
         for i in range(2):
-            time.sleep(.2)
+            time.sleep(0.2)
             with pytest.raises(CtapError) as e:
                 cmd(credMgmt)
             assert e.value.code == CtapError.ERR.PIN_AUTH_INVALID
@@ -393,15 +423,16 @@ class TestCredentialManagement(object):
             cmd(credMgmt)
         assert e.value.code == CtapError.ERR.PIN_BLOCKED
 
+
 class TestCredProtect(object):
-    def test_credProtect_0(self,resetDevice):
+    def test_credProtect_0(self, resetDevice):
         req = FidoRequest(extensions={"credProtect": 0}, options={"rk": True})
         res = resetDevice.sendMC(*req.toMC())
 
         if res.auth_data.extensions:
             assert "credProtect" not in res.auth_data.extensions
 
-    def test_credProtect_1(self,device):
+    def test_credProtect_1(self, device):
         req = FidoRequest(extensions={"credProtect": 1}, options={"rk": True})
         MCRes = device.sendMC(*req.toMC())
 
@@ -410,7 +441,10 @@ class TestCredProtect(object):
 
         req = FidoRequest(
             allow_list=[
-                {"id": MCRes.auth_data.credential_data.credential_id, "type": "public-key"}
+                {
+                    "id": MCRes.auth_data.credential_data.credential_id,
+                    "type": "public-key",
+                }
             ]
         )
 
@@ -418,7 +452,7 @@ class TestCredProtect(object):
         verify(MCRes, GARes, req.cdh)
         assert (GARes.auth_data.flags & (1 << 2)) == 0
 
-    def test_credProtect_2_allow_list(self,device):
+    def test_credProtect_2_allow_list(self, device):
         """ credProtect level 2 shouldn't need UV if allow_list is specified """
         req = FidoRequest(extensions={"credProtect": 2}, options={"rk": True})
         MCRes = device.sendMC(*req.toMC())
@@ -428,7 +462,10 @@ class TestCredProtect(object):
 
         req = FidoRequest(
             allow_list=[
-                {"id": MCRes.auth_data.credential_data.credential_id, "type": "public-key"}
+                {
+                    "id": MCRes.auth_data.credential_data.credential_id,
+                    "type": "public-key",
+                }
             ]
         )
 
@@ -436,7 +473,7 @@ class TestCredProtect(object):
         verify(MCRes, GARes, req.cdh)
         assert (GARes.auth_data.flags & (1 << 2)) == 0
 
-    def test_credProtect_2_no_allow_list(self,device):
+    def test_credProtect_2_no_allow_list(self, device):
         device.reset()
         req = FidoRequest(extensions={"credProtect": 2}, options={"rk": True})
         MCRes = device.sendMC(*req.toMC())
@@ -450,7 +487,7 @@ class TestCredProtect(object):
             GARes = device.sendGA(*req.toGA())
         assert e.value.code == CtapError.ERR.NO_CREDENTIALS
 
-    def test_credProtect_3_allow_list_and_no_allow_list(self,device):
+    def test_credProtect_3_allow_list_and_no_allow_list(self, device):
         """ credProtect level 3 requires UV """
         device.reset()
         req = FidoRequest(extensions={"credProtect": 3}, options={"rk": True})
@@ -461,7 +498,10 @@ class TestCredProtect(object):
 
         req = FidoRequest(
             allow_list=[
-                {"id": MCRes.auth_data.credential_data.credential_id, "type": "public-key"}
+                {
+                    "id": MCRes.auth_data.credential_data.credential_id,
+                    "type": "public-key",
+                }
             ]
         )
 
@@ -475,16 +515,22 @@ class TestCredProtect(object):
             GARes = device.sendGA(*req.toGA())
         assert e.value.code == CtapError.ERR.NO_CREDENTIALS
 
-    def test_credProtect_3_success(self,device):
+    def test_credProtect_3_success(self, device):
         device.reset()
 
         # Set a PIN
-        pin = '1234'
+        pin = "1234"
         device.client.pin_protocol.set_pin(pin)
         pin_token = device.client.pin_protocol.get_pin_token(pin)
         req = FidoRequest()
         pin_auth = hmac_sha256(pin_token, req.cdh)[:16]
-        req = FidoRequest(req, pin_auth = pin_auth, pin_protocol = 1, extensions={"credProtect": 3}, options={"rk": True})
+        req = FidoRequest(
+            req,
+            pin_auth=pin_auth,
+            pin_protocol=1,
+            extensions={"credProtect": 3},
+            options={"rk": True},
+        )
 
         MCRes = device.sendMC(*req.toMC())
 
@@ -492,14 +538,16 @@ class TestCredProtect(object):
         assert (MCRes.auth_data.flags & (1 << 2)) != 0
 
         req = FidoRequest(
-            pin = pin,
-            pin_auth = pin_auth,
+            pin=pin,
+            pin_auth=pin_auth,
             allow_list=[
-                {"id": MCRes.auth_data.credential_data.credential_id, "type": "public-key"}
-            ]
+                {
+                    "id": MCRes.auth_data.credential_data.credential_id,
+                    "type": "public-key",
+                }
+            ],
         )
 
         GARes = device.sendGA(*req.toGA())
         assert (GARes.auth_data.flags & (1 << 2)) != 0
         verify(MCRes, GARes, req.cdh)
-

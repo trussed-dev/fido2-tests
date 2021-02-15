@@ -13,7 +13,7 @@ from fido2.utils import hmac_sha256, sha256
 
 from tests.utils import *
 
-if 'trezor' in sys.argv:
+if "trezor" in sys.argv:
     from .vendor.trezor.udp_backend import force_udp_backend
 else:
     from solo.fido2 import force_udp_backend
@@ -45,7 +45,9 @@ def info(device):
 
 
 @pytest.fixture(scope="module")
-def MCRes(resetDevice,):
+def MCRes(
+    resetDevice,
+):
     req = FidoRequest()
     res = resetDevice.sendMC(*req.toMC())
     setattr(res, "request", req)
@@ -65,7 +67,9 @@ def GARes(device, MCRes):
 
 
 @pytest.fixture(scope="module")
-def RegRes(resetDevice,):
+def RegRes(
+    resetDevice,
+):
     req = FidoRequest()
     res = resetDevice.register(req.challenge, req.appid)
     setattr(res, "request", req)
@@ -115,7 +119,9 @@ class Packet(object):
     def __init__(self, data):
         self.data = data
 
-    def ToWireFormat(self,):
+    def ToWireFormat(
+        self,
+    ):
         return self.data
 
     @staticmethod
@@ -177,7 +183,9 @@ class TestDevice:
     def set_sim(self, b):
         self.is_sim = b
 
-    def reboot(self,):
+    def reboot(
+        self,
+    ):
         if self.is_sim:
             print("Sending restart command...")
             self.send_magic_reboot()
@@ -190,14 +198,14 @@ class TestDevice:
                 self.find_device(self.nfc_interface_only)
                 return
 
-        if 'solokeys' in sys.argv or 'solobee' in sys.argv:
+        if "solokeys" in sys.argv or "solobee" in sys.argv:
             try:
-                self.dev.call(0x53 ^ 0x80,b'')
+                self.dev.call(0x53 ^ 0x80, b"")
             except OSError:
                 pass
 
-            print('Rebooting..')
-            for _ in range(0,8):
+            print("Rebooting..")
+            for _ in range(0, 8):
                 time.sleep(0.1)
                 try:
                     self.find_device(self.nfc_interface_only)
@@ -233,7 +241,9 @@ class TestDevice:
         assert len(data) == 64
         self.dev._dev.InternalSendPacket(Packet(data))
 
-    def send_magic_reboot(self,):
+    def send_magic_reboot(
+        self,
+    ):
         """
         For use in simulation and testing.  Random bytes that authenticator should detect
         and then restart itself.
@@ -248,16 +258,20 @@ class TestDevice:
         )
         self.dev._dev.InternalSendPacket(Packet(magic_cmd))
 
-    def send_nfc_reboot(self,):
+    def send_nfc_reboot(
+        self,
+    ):
         """
         Send magic nfc reboot sequence for solokey
         """
         data = b"\x12\x56\xab\xf0"
-        header = struct.pack('!BBBBB', 0x00, 0xee, 0x00, 0x00, len(data))
+        header = struct.pack("!BBBBB", 0x00, 0xEE, 0x00, 0x00, len(data))
         resp, sw1, sw2 = self.dev.apdu_exchange(header + data)
         return sw1 == 0x90 and sw2 == 0x00
 
-    def cid(self,):
+    def cid(
+        self,
+    ):
         return self.dev._dev.cid
 
     def set_cid(self, cid):
@@ -265,7 +279,9 @@ class TestDevice:
             cid = struct.pack("%dB" % len(cid), *[ord(x) for x in cid])
         self.dev._dev.cid = cid
 
-    def recv_raw(self,):
+    def recv_raw(
+        self,
+    ):
         with Timeout(1.0):
             cmd, payload = self.dev._dev.InternalRecv()
         return cmd, payload
@@ -279,10 +295,19 @@ class TestDevice:
             raise ValueError("Unexpected error: %02x" % data[0])
 
     def register(self, chal, appid, on_keepalive=DeviceSelectCredential(1)):
-        reg_data = _call_polling(0.25, None, on_keepalive, self.ctap1.register, chal, appid)
+        reg_data = _call_polling(
+            0.25, None, on_keepalive, self.ctap1.register, chal, appid
+        )
         return reg_data
 
-    def authenticate(self, chal, appid, key_handle, check_only=False, on_keepalive=DeviceSelectCredential(1)):
+    def authenticate(
+        self,
+        chal,
+        appid,
+        key_handle,
+        check_only=False,
+        on_keepalive=DeviceSelectCredential(1),
+    ):
         auth_data = _call_polling(
             0.25,
             None,
@@ -295,7 +320,9 @@ class TestDevice:
         )
         return auth_data
 
-    def reset(self,):
+    def reset(
+        self,
+    ):
         print("Resetting Authenticator...")
         try:
             self.ctap2.reset(on_keepalive=DeviceSelectCredential(1))

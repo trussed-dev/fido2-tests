@@ -6,7 +6,9 @@ from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
 from tests.utils import *
 
 
-@pytest.mark.skipif('trezor' in sys.argv, reason="ClientPin is not supported on Trezor.")
+@pytest.mark.skipif(
+    "trezor" in sys.argv, reason="ClientPin is not supported on Trezor."
+)
 class TestSetPin(object):
     def test_send_zero_length_pin_auth(self, resetDevice):
         with pytest.raises(CtapError) as e:

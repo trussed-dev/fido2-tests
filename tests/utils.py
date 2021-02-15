@@ -8,7 +8,7 @@ from numbers import Number
 from fido2.ctap2 import ES256, AttestedCredentialData, PinProtocolV1
 from fido2.utils import hmac_sha256, sha256
 
-if 'trezor' in sys.argv:
+if "trezor" in sys.argv:
     from .vendor.trezor.utils import DeviceSelectCredential
 else:
     from .vendor.solo.utils import DeviceSelectCredential
@@ -57,6 +57,7 @@ def generate_user():
 
 counter = 1
 
+
 def generate_user_maximum():
     """
     Generate RK with the maximum lengths of the fields, according to the minimal requirements of the FIDO2 spec
@@ -69,8 +70,8 @@ def generate_user_maximum():
 
     # https://www.w3.org/TR/webauthn/#dictionary-pkcredentialentity
     name = " ".join(random.choice(name_list).strip() for i in range(0, 30))
-    name = f'{counter}: {name}'
-    icon = "https://www.w3.org/TR/webauthn/" + 'A'*128
+    name = f"{counter}: {name}"
+    icon = "https://www.w3.org/TR/webauthn/" + "A" * 128
     display_name = "Displayed " + name
 
     name = name[:64]
@@ -150,8 +151,8 @@ class FidoRequest:
 
     def save_attr(self, attr, value, request):
         """
-            Will assign attribute from source, in following priority:
-                Argument, request object, generated
+        Will assign attribute from source, in following priority:
+            Argument, request object, generated
         """
         if value != Empty:
             setattr(self, attr, value)
@@ -160,7 +161,9 @@ class FidoRequest:
         else:
             setattr(self, attr, generate(attr))
 
-    def toGA(self,):
+    def toGA(
+        self,
+    ):
         return [
             None if not self.rp else self.rp["id"],
             self.cdh,
@@ -173,7 +176,9 @@ class FidoRequest:
             self.on_keepalive,
         ]
 
-    def toMC(self,):
+    def toMC(
+        self,
+    ):
         return [
             self.cdh,
             self.rp,
@@ -219,6 +224,7 @@ class FidoRequest:
 # LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN
 # ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
 # POSSIBILITY OF SUCH DAMAGE.
+
 
 class Timeout(object):
     """Utility class for adding a timeout to an event.
