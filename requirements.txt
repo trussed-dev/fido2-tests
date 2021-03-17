@@ -1,4 +1,4 @@
-fido2 >= 0.8.0
+fido2 == 0.8.1
 pyscard
 pytest
 pytest-ordering
