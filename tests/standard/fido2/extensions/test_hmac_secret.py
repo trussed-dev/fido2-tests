@@ -79,6 +79,7 @@ class TestHmacSecret(object):
         req = FidoRequest(
             extensions={"hmac-secret": {1: key_agreement, 2: salt_enc, 3: salt_auth}}
         )
+        print("key-agreement", key_agreement)
         auth = device.sendGA(*req.toGA())
 
         ext = auth.auth_data.extensions
@@ -199,7 +200,7 @@ class TestHmacSecret(object):
 
         with pytest.raises(CtapError) as e:
             device.sendGA(*req.toGA())
-        assert e.value.code == CtapError.ERR.INVALID_LENGTH
+        assert e.value.code in [ CtapError.ERR.INVALID_LENGTH, CtapError.ERR.INVALID_CBOR ]
 
     @pytest.mark.parametrize("salts", [(salt1,), (salt1, salt2)])
     def test_get_next_assertion_has_extension(
@@ -209,7 +210,7 @@ class TestHmacSecret(object):
         accounts = 3
         regs = []
         auths = []
-        rp = {"id": "example_2.org", "name": "ExampleRP_2"}
+        rp = {"id": f"example_salts_{len(salts)}.org", "name": "ExampleRP_2"}
 
         for i in range(0, accounts):
             req = FidoRequest(
