@@ -5,7 +5,7 @@ from fido2.ctap import CtapError
 from tests.utils import *
 
 
-@pytest.fixture(scope="module", params=["", "123456"])
+@pytest.fixture(scope="class", params=["", "123456"])
 def SetPINRes(request, device, info):
 
     device.reset()
@@ -26,7 +26,7 @@ def SetPINRes(request, device, info):
     return res
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def MC_RK_Res(device, SetPINRes):
     req = FidoRequest(SetPINRes, options={"rk": True})
     res = device.sendMC(*req.toMC())
@@ -40,6 +40,29 @@ def GA_RK_Res(device, MC_RK_Res):
     res = device.sendGA(*req.toGA())
     setattr(res, "request", req)
     return res
+
+
+class TestResidentKeyPersistance(object):
+    @pytest.mark.parametrize("do_reboot", [False, True])
+    def test_user_info_returned_when_using_allowlist(self, device, MC_RK_Res, GA_RK_Res, do_reboot):
+        assert "id" in GA_RK_Res.user.keys()
+        
+        allow_list = [
+            {
+                "id": MC_RK_Res.auth_data.credential_data.credential_id[:],
+                "type": "public-key",
+            }
+        ]
+
+        if do_reboot:
+            device.reboot()
+
+        ga_req = FidoRequest(allow_list=allow_list)
+        ga_res = device.sendGA(*ga_req.toGA())
+        setattr(ga_res, "request", ga_req)
+        verify(MC_RK_Res, ga_res)
+
+        assert MC_RK_Res.request.user["id"] == ga_res.user["id"]
 
 
 class TestResidentKey(object):
@@ -60,23 +83,6 @@ class TestResidentKey(object):
             assert "id" in GA_RK_Res.user.keys() and len(GA_RK_Res.user.keys()) == 1
         else:
             assert MC_RK_Res.request.user == GA_RK_Res.user
-
-    def test_user_info_returned_when_using_allowlist(self, device, MC_RK_Res, GA_RK_Res):
-        assert "id" in GA_RK_Res.user.keys()
-        
-        allow_list = [
-            {
-                "id": MC_RK_Res.auth_data.credential_data.credential_id[:],
-                "type": "public-key",
-            }
-        ]
-
-        ga_req = FidoRequest(allow_list=allow_list)
-        ga_res = device.sendGA(*ga_req.toGA())
-        setattr(ga_res, "request", ga_req)
-        verify(MC_RK_Res, ga_res)
-
-        assert MC_RK_Res.request.user["id"] == ga_res.user["id"]
 
     @pytest.mark.skipif(
         "trezor" in sys.argv,
