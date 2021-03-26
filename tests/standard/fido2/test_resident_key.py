@@ -64,6 +64,32 @@ class TestResidentKeyPersistance(object):
 
         assert MC_RK_Res.request.user["id"] == ga_res.user["id"]
 
+class TestResidentKeyAfterReset(object):
+    def test_with_allow_list_after_reset(self, device, MC_RK_Res, GA_RK_Res):
+        assert "id" in GA_RK_Res.user.keys()
+        
+        allow_list = [
+            {
+                "id": MC_RK_Res.auth_data.credential_data.credential_id[:],
+                "type": "public-key",
+            }
+        ]
+
+        ga_req = FidoRequest(allow_list=allow_list)
+        ga_res = device.sendGA(*ga_req.toGA())
+        setattr(ga_res, "request", ga_req)
+        verify(MC_RK_Res, ga_res)
+
+        assert MC_RK_Res.request.user["id"] == ga_res.user["id"]
+
+        device.reset()
+
+        ga_req = FidoRequest(allow_list=allow_list)
+        with pytest.raises(CtapError) as e:
+            ga_res = device.sendGA(*ga_req.toGA())
+        assert e.value.code == CtapError.ERR.NO_CREDENTIALS
+
+
 
 class TestResidentKey(object):
     def test_resident_key(self, MC_RK_Res, info):
@@ -324,3 +350,63 @@ class TestResidentKey(object):
             res = device.sendGA(*req.toGA())
             assert res.user["id"] == reg.request.user["id"]
             verify(reg, res, req.cdh)
+
+    def test_rk_with_allowlist_of_different_rp(self, resetDevice):
+        """
+        Test that a rk credential is not found when using an allowList item for a different RP
+        """
+
+        rk_rp = {"id": "rk-cred.org", "name": "Example"}
+        rk_req = FidoRequest(rp = rk_rp, options={"rk": True})
+        rk_res = resetDevice.sendMC(*rk_req.toMC())
+
+        server_rp = {"id": "server-cred.com", "name": "Example"}
+        server_req = FidoRequest(rp = server_rp)
+        server_res = resetDevice.sendMC(*server_req.toMC())
+
+        allow_list_with_different_rp_cred = [
+            {
+                "id": server_res.auth_data.credential_data.credential_id[:],
+                "type": "public-key",
+            }
+        ]
+
+        test_req = FidoRequest(rp = rk_rp, allow_list = allow_list_with_different_rp_cred)
+
+        with pytest.raises(CtapError) as e:
+            res = resetDevice.sendGA(*test_req.toGA())
+        assert e.value.code == CtapError.ERR.NO_CREDENTIALS
+
+
+    def test_same_userId_overwrites_rk(self, resetDevice):
+        """
+        A make credential request with a UserId & Rp that is the same as an existing one should overwrite.
+        """
+        rp = {"id": "overwrite.org", "name": "Example"}
+        user = generate_user()
+
+        req = FidoRequest(rp = rp, options={"rk": True}, user = user)
+        mc_res1 = resetDevice.sendMC(*req.toMC())
+
+        # Should overwrite the first credential.
+        mc_res2 = resetDevice.sendMC(*req.toMC())
+
+        ga_res = resetDevice.sendGA(*req.toGA())
+
+        # If there's only one credential, this is None
+        assert ga_res.number_of_credentials == None
+
+        verify(mc_res2, ga_res, req.cdh)
+
+    def test_larger_icon_than_128(self, device):
+        """
+        Test it works if we give an icon value larger than 128 bytes
+        """
+        rp = {"id": "overwrite.org", "name": "Example"}
+        user = generate_user()
+        user['icon'] = 'https://www.w3.org/TR/webauthn/?icon=' + ("A" * 128)
+
+        req = FidoRequest(rp = rp, options={"rk": True}, user = user)
+        device.sendMC(*req.toMC())
+
+
