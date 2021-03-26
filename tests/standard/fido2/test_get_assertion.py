@@ -26,6 +26,65 @@ class TestGetAssertion(object):
             device.sendGA(*FidoRequest(allow_list=[]).toGA())
         assert e.value.code == CtapError.ERR.NO_CREDENTIALS
 
+    def test_get_assertion_allow_list_filtering_and_buffering(self, device):
+        """ Check that authenticator filters and stores items in allow list correctly """
+        allow_list = []
+
+        rp1 = {"id": "rp1.com", "name": "rp1.com"}
+        rp2 = {"id": "rp2.com", "name": "rp2.com"}
+        req1 = FidoRequest(rp=rp1)
+        req2 = FidoRequest(rp=rp2)
+
+        rp1_registrations = []
+        rp2_registrations = []
+        rp1_assertions = []
+        rp2_assertions = []
+
+        for i in range(0,4):
+            res = device.sendMC(*req1.toMC())
+            rp1_registrations.append(res)
+            allow_list.append({
+                "id": res.auth_data.credential_data.credential_id[:],
+                "type": "public-key",
+            })
+
+        for i in range(0,6):
+            res = device.sendMC(*req2.toMC())
+            rp2_registrations.append(res)
+            allow_list.append({
+                "id": res.auth_data.credential_data.credential_id[:],
+                "type": "public-key",
+            })
+
+        req1 = FidoRequest(req1, allow_list = allow_list)
+        req2 = FidoRequest(req2, allow_list = allow_list)
+
+        # Should authenticate to all credentials matching rp1
+        ga_res1 = device.sendGA(*req1.toGA())
+        assert ga_res1.number_of_credentials == len(rp1_registrations)
+
+        rp1_assertions.append(ga_res1)
+        for i in range(len(rp1_registrations) - 1):
+            rp1_assertions.append(device.ctap2.get_next_assertion())
+
+        # Should authenticate to all credentials matching rp2
+        ga_res2 = device.sendGA(*req2.toGA())
+        assert ga_res2.number_of_credentials == len(rp2_registrations)
+
+        rp2_assertions.append(ga_res2)
+        for i in range(len(rp2_registrations) - 1):
+            rp2_assertions.append(device.ctap2.get_next_assertion())
+
+        # Assertions return in order of most recently created credential.
+        rp1_assertions.reverse()
+        rp2_assertions.reverse()
+
+        for (reg, auth) in zip(rp1_registrations, rp1_assertions):
+            verify(reg, auth, req1.cdh)
+
+        for (reg, auth) in zip(rp2_registrations, rp2_assertions):
+            verify(reg, auth, req2.cdh)
+
     def test_corrupt_credId(self, device, MCRes):
         # apply bit flip
         badid = list(MCRes.auth_data.credential_data.credential_id[:])
