@@ -427,10 +427,11 @@ class TestDevice:
             # Add additional arg to calculate pin auth on demand
             pin = args[-1]
             args = list(args[:-1])
-            pin_token = self.client.pin_protocol.get_pin_token(pin)
-            pin_auth = hmac_sha256(pin_token, args[0])[:16]
-            args[7] = pin_auth
-            args[8] = 1
+            if args[7] == None and args[8] == None:
+                pin_token = self.client.pin_protocol.get_pin_token(pin)
+                pin_auth = hmac_sha256(pin_token, args[0])[:16]
+                args[7] = pin_auth
+                args[8] = 1
 
         attestation_object = self.ctap2.make_credential(*args, **kwargs)
         if attestation_object:
@@ -448,10 +449,11 @@ class TestDevice:
             # Add additional arg to calculate pin auth on demand
             pin = args[-1]
             args = list(args[:-1])
-            pin_token = self.client.pin_protocol.get_pin_token(pin)
-            pin_auth = hmac_sha256(pin_token, args[1])[:16]
-            args[5] = pin_auth
-            args[6] = 1
+            if args[5] == None and args[6] == None:
+                pin_token = self.client.pin_protocol.get_pin_token(pin)
+                pin_auth = hmac_sha256(pin_token, args[1])[:16]
+                args[5] = pin_auth
+                args[6] = 1
 
         return self.ctap2.get_assertion(*args, **kwargs)
 
