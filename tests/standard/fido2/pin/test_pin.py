@@ -9,7 +9,7 @@ PIN1 = "123456789A"
 PIN2 = "ABCDEF"
 
 
-@pytest.fixture(scope="module", params=[PIN1])
+@pytest.fixture(scope="class", params=[PIN1])
 def SetPinRes(request, device):
     device.reset()
 
@@ -17,10 +17,8 @@ def SetPinRes(request, device):
     req = FidoRequest()
 
     device.client.pin_protocol.set_pin(pin)
-    pin_token = device.client.pin_protocol.get_pin_token(pin)
-    pin_auth = hmac_sha256(pin_token, req.cdh)[:16]
 
-    req = FidoRequest(req, pin_protocol=1, pin_auth=pin_auth)
+    req = FidoRequest(req, pin = pin)
 
     res = device.sendMC(*req.toMC())
     setattr(res, "request", req)
@@ -28,13 +26,13 @@ def SetPinRes(request, device):
     return res
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def CPRes(request, device, SetPinRes):
     res = device.sendCP(1, PinProtocolV1.CMD.GET_KEY_AGREEMENT)
     return res
 
 
-@pytest.fixture(scope="module")
+@pytest.fixture(scope="class")
 def MCPinRes(device, SetPinRes):
     req = FidoRequest(SetPinRes)
     res = device.sendMC(*req.toMC())
@@ -77,34 +75,6 @@ class TestPin(object):
         reg = device.sendMC(*FidoRequest(SetPinRes).toMC())
         assert reg.auth_data.flags & (1 << 2)
 
-    def test_change_pin(self, device, SetPinRes):
-        device.client.pin_protocol.change_pin(PIN1, PIN2)
-
-        pin_token = device.client.pin_protocol.get_pin_token(PIN2)
-        pin_auth = hmac_sha256(pin_token, SetPinRes.request.cdh)[:16]
-
-        SetPinRes.request.pin_token = pin_token
-        SetPinRes.request.pin_auth = pin_auth
-        SetPinRes.PIN = PIN2
-
-        reg = device.sendMC(*FidoRequest(SetPinRes).toMC())
-        auth = device.sendGA(
-            *FidoRequest(
-                SetPinRes,
-                allow_list=[
-                    {
-                        "type": "public-key",
-                        "id": reg.auth_data.credential_data.credential_id,
-                    }
-                ],
-            ).toGA()
-        )
-
-        assert reg.auth_data.flags & (1 << 2)
-        assert auth.auth_data.flags & (1 << 2)
-
-        verify(reg, auth, cdh=SetPinRes.request.cdh)
-
     def test_get_no_pin_auth(self, device, SetPinRes):
 
         reg = device.sendMC(*FidoRequest(SetPinRes).toMC())
@@ -113,7 +83,7 @@ class TestPin(object):
         ]
         auth = device.sendGA(
             *FidoRequest(
-                SetPinRes, allow_list=allow_list, pin_auth=None, pin_protocol=None
+                SetPinRes, allow_list=allow_list, pin_auth=None, pin_protocol=None, pin = None,
             ).toGA()
         )
 
@@ -121,7 +91,7 @@ class TestPin(object):
 
         with pytest.raises(CtapError) as e:
             reg = device.sendMC(
-                *FidoRequest(SetPinRes, pin_auth=None, pin_protocol=None).toMC()
+                *FidoRequest(SetPinRes, pin_auth=None, pin_protocol=None, pin = None).toMC()
             )
 
         assert e.value.code == CtapError.ERR.PIN_REQUIRED
@@ -145,41 +115,60 @@ class TestPin(object):
             reg = device.sendGA(*FidoRequest().toGA())
         assert e.value.code == CtapError.ERR.NO_CREDENTIALS
 
+class TestChangePin:
+    def test_change_pin(self, device, SetPinRes):
+        device.client.pin_protocol.change_pin(PIN1, PIN2)
 
-@pytest.mark.skipif(
-    "trezor" in sys.argv, reason="ClientPin is not supported on Trezor."
-)
-def test_pin_attempts(device, SetPinRes):
-    # Flip 1 bit
-    pin = SetPinRes.PIN
-    pin_wrong = list(pin)
-    c = pin[len(pin) // 2]
+        req = FidoRequest(SetPinRes.request, pin = PIN2)
 
-    pin_wrong[len(pin) // 2] = chr(ord(c) ^ 1)
-    pin_wrong = "".join(pin_wrong)
+        reg = device.sendMC(*req.toMC())
+        auth = device.sendGA(
+            *FidoRequest(
+                req,
+                allow_list=[
+                    {
+                        "type": "public-key",
+                        "id": reg.auth_data.credential_data.credential_id,
+                    }
+                ],
+            ).toGA()
+        )
 
-    for i in range(1, 3):
-        with pytest.raises(CtapError) as e:
-            device.sendPP(pin_wrong)
-        assert e.value.code == CtapError.ERR.PIN_INVALID
+        assert reg.auth_data.flags & (1 << 2)
+        assert auth.auth_data.flags & (1 << 2)
 
-        print("Check there is %d pin attempts left" % (8 - i))
+        verify(reg, auth, cdh=SetPinRes.request.cdh)
+
+class TestPinAttempts:
+    @pytest.mark.skipif(
+        "trezor" in sys.argv, reason="ClientPin is not supported on Trezor."
+    )
+    def test_pin_attempts(self, device, SetPinRes):
+        # Flip 1 bit
+        pin = SetPinRes.PIN
+        pin_wrong = list(pin)
+        c = pin[len(pin) // 2]
+
+        pin_wrong[len(pin) // 2] = chr(ord(c) ^ 1)
+        pin_wrong = "".join(pin_wrong)
+
+        for i in range(1, 3):
+            with pytest.raises(CtapError) as e:
+                device.sendPP(pin_wrong)
+            assert e.value.code == CtapError.ERR.PIN_INVALID
+
+            print("Check there is %d pin attempts left" % (8 - i))
+            res = device.ctap2.client_pin(1, PinProtocolV1.CMD.GET_RETRIES)
+            assert res[3] == (8 - i)
+
+        for i in range(1, 3):
+            with pytest.raises(CtapError) as e:
+                device.sendPP(pin_wrong)
+            assert e.value.code == CtapError.ERR.PIN_AUTH_BLOCKED
+
+        device.reboot()
+
+        reg = device.sendMC(*FidoRequest(SetPinRes, pin = pin).toMC())
+
         res = device.ctap2.client_pin(1, PinProtocolV1.CMD.GET_RETRIES)
-        assert res[3] == (8 - i)
-
-    for i in range(1, 3):
-        with pytest.raises(CtapError) as e:
-            device.sendPP(pin_wrong)
-        assert e.value.code == CtapError.ERR.PIN_AUTH_BLOCKED
-
-    device.reboot()
-
-    SetPinRes.request.pin_token = device.client.pin_protocol.get_pin_token(pin)
-    SetPinRes.request.pin_auth = hmac_sha256(
-        SetPinRes.request.pin_token, SetPinRes.request.cdh
-    )[:16]
-
-    reg = device.sendMC(*FidoRequest(SetPinRes).toMC())
-
-    res = device.ctap2.client_pin(1, PinProtocolV1.CMD.GET_RETRIES)
-    assert res[3] == (8)
+        assert res[3] == (8)

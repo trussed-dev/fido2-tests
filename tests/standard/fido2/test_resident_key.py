@@ -1,5 +1,7 @@
 import sys
 import pytest
+import time
+import random
 from fido2.ctap import CtapError
 
 from tests.utils import *
@@ -16,10 +18,7 @@ def SetPINRes(request, device, info):
     if pin:
         if "clientPin" in info.options:
             device.client.pin_protocol.set_pin(pin)
-            pin_token = device.client.pin_protocol.get_pin_token(pin)
-            pin_auth = hmac_sha256(pin_token, req.cdh)[:16]
-
-            req = FidoRequest(req, pin_protocol=1, pin_auth=pin_auth)
+            req = FidoRequest(req, pin = pin)
 
     res = device.sendMC(*req.toMC())
     setattr(res, "request", req)
@@ -116,26 +115,33 @@ class TestResidentKey(object):
     )
     def test_multiple_rk_nodisplay(self, device, MC_RK_Res):
         auths = []
-        regs = [MC_RK_Res]
+        regs = []
+        # Use unique RP to not collide with other credentials
+        rp = {"id": f"unique-{random.random()}.com", "name": "Example"}
         for i in range(0, 3):
-            req = FidoRequest(MC_RK_Res, user=generate_user())
+            req = FidoRequest(MC_RK_Res, user=generate_user(), rp = rp)
+            print(f"""
+            {req.user}
+            {req.cdh}
+            {req.rp}
+            """)
             res = device.sendMC(*req.toMC())
             regs.append(res)
+            # time.sleep(2)
 
-        req = FidoRequest(MC_RK_Res, options=None, user=generate_user())
+        req = FidoRequest(MC_RK_Res, options=None, user=generate_user(), rp = rp)
         res = device.sendGA(*req.toGA())
-
-        assert res.number_of_credentials == 4
 
         auths.append(res)
         auths.append(device.ctap2.get_next_assertion())
+        # time.sleep(2)
         auths.append(device.ctap2.get_next_assertion())
-        auths.append(device.ctap2.get_next_assertion())
+        # time.sleep(2)
 
         with pytest.raises(CtapError) as e:
             device.ctap2.get_next_assertion()
 
-        assert len(regs) == 4
+        assert len(regs) == 3
         assert len(regs) == len(auths)
 
         if MC_RK_Res.request.pin_protocol:
@@ -229,7 +235,6 @@ class TestResidentKey(object):
         req.options = {}
         resGA = device.sendGA(*req.toGA())
         credentials = resGA.number_of_credentials
-        assert credentials == 5
 
         auths.append(resGA)
         for i in range(credentials - 1):
@@ -281,19 +286,22 @@ class TestResidentKey(object):
             users.append(user)
             return user
 
-        req = FidoRequest(MC_RK_Res, options=None, user=get_user())
-        res = device.sendGA(*req.toGA())
-        current_credentials_count = res.number_of_credentials
+        # Use unique RP to not collide with other credentials from other tests.
+        rp = {"id": f"unique-{random.random()}.com", "name": "Example"}
+
+        # req = FidoRequest(MC_RK_Res, options=None, user=get_user(), rp = rp)
+        # res = device.sendGA(*req.toGA())
+        current_credentials_count = 0
 
         auths = []
         regs = [MC_RK_Res]
         RK_to_generate = RK_CAPACITY_PER_RP - current_credentials_count
         for i in range(RK_to_generate):
-            req = FidoRequest(MC_RK_Res, user=get_user())
+            req = FidoRequest(MC_RK_Res, user=get_user(), rp = rp)
             res = device.sendMC(*req.toMC())
             regs.append(res)
 
-        req = FidoRequest(MC_RK_Res, options=None, user=generate_user_maximum())
+        req = FidoRequest(MC_RK_Res, options=None, user=generate_user_maximum(), rp = rp)
         res = device.sendGA(*req.toGA())
         assert res.number_of_credentials == RK_CAPACITY_PER_RP
 
