@@ -128,6 +128,83 @@ class Packet(object):
     def FromWireFormat(pkt_size, data):
         return Packet(data)
 
+from fido2.pcsc import CtapPcscDevice,_list_readers
+from fido2.hid import CAPABILITY, CTAPHID
+
+
+class MoreRobustPcscDevice(CtapPcscDevice):
+    """
+    Some small tweaks to prevent failures in NFC when many
+    tests are being run on the same connection.
+    """
+    def __init__(self, connection, name):
+        self._capabilities = 0
+        self.use_ext_apdu = False
+        self._conn = connection
+        from smartcard.System import readers
+        from smartcard.util import toHexString
+        from smartcard.CardConnection import CardConnection
+        from smartcard.pcsc.PCSCPart10 import (getFeatureRequest, hasFeature,
+            getTlvProperties, FEATURE_CCID_ESC_COMMAND, SCARD_SHARE_DIRECT)
+        from smartcard.scard import SCARD_LEAVE_CARD, SCARD_SHARE_EXCLUSIVE, SCARD_CTL_CODE, SCARD_UNPOWER_CARD, SCARD_RESET_CARD
+
+        # res = self._conn.transmit([0xE0,0x00,0x00,0x24,0x02,0x00,0x00],CardConnection.T0_protocol)
+        # res = self.control_exchange(SCARD_CTL_CODE(3500), b"\xE0\x00\x00\x24\x00")
+        # print('read ctrl res:',res)
+        # res = self.control_exchange(SCARD_CTL_CODE(3500), b"\xE0\x00\x00\x24\x02\x00\x00")
+
+        self._conn.connect(
+            # CardConnection.T0_protocol,
+            # mode=SCARD_SHARE_DIRECT
+            # disposition = SCARD_RESET_CARD,
+        )
+
+        self._name = name
+        self._select()
+
+        # For ACR1252 readers, with drivers installed
+        # https://www.acs.com.hk/en/products/342/acr1252u-usb-nfc-reader-iii-nfc-forum-certified-reader
+        # disable auto pps, always use 106kbps
+        # self.control_exchange(SCARD_CTL_CODE(3500), b"\xE0\x00\x00\x24\x02\x00\x00")
+        # or always use 212kps
+        # self.control_exchange(SCARD_CTL_CODE(3500), b"\xE0\x00\x00\x24\x02\x01\x01")
+
+        try:  # Probe for CTAP2 by calling GET_INFO
+            self.call(CTAPHID.CBOR, b"\x04")
+            self._capabilities |= CAPABILITY.CBOR
+        except CtapError:
+            if self._capabilities == 0:
+                raise ValueError("Unsupported device")
+    
+    def apdu_exchange(self, apdu, protocol = None):
+        try:
+            return super().apdu_exchange(apdu,protocol)
+        except:
+            # Try reconnecting..
+            self._conn.disconnect()
+            self._conn.connect()
+            return super().apdu_exchange(apdu,protocol)
+
+    def call(self, cmd, data=b"", event=None, on_keepalive=None):
+        # Sometimes an NFC reader may suspend the field inbetween tests,
+        # Which would require the app to be selected again.
+        self._select()
+        return super().call(cmd, data, event, on_keepalive)
+
+    def _call_cbor(self, data=b"", event=None, on_keepalive=None):
+        # Sometimes an NFC reader may suspend the field inbetween tests,
+        # Which would require the app to be selected again.
+        self._select()
+        return super()._call_cbor(data, event, on_keepalive)
+
+    @classmethod
+    def list_devices(cls, name=""):
+        for reader in _list_readers():
+            if name in reader.name:
+                try:
+                    yield cls(reader.createConnection(), reader.name)
+                except Exception as e:
+                    print(e)
 
 class TestDevice:
     def __init__(self, tester=None):
@@ -158,7 +235,7 @@ class TestDevice:
             # print(list(CtapHidDevice.list_devices()))
             dev = next(CtapHidDevice.list_devices(), None)
 
-        if not dev:
+        else:
             from fido2.pcsc import CtapPcscDevice
 
             # print("--- NFC ---")
@@ -192,25 +269,24 @@ class TestDevice:
             TestDevice.delay(0.25)
             return
 
-        if self.is_nfc:
-            if self.send_nfc_reboot():
-                TestDevice.delay(0.5)
-                self.find_device(self.nfc_interface_only)
-                return
-
         if "solokeys" in sys.argv or "solobee" in sys.argv:
+            if self.is_nfc:
+                if self.send_nfc_reboot():
+                    TestDevice.delay(5)
+                    self.find_device(self.nfc_interface_only)
+                    return
             try:
                 self.dev.call(0x53 ^ 0x80, b"")
             except OSError:
                 pass
 
             print("Rebooting..")
-            for _ in range(0, 8):
-                time.sleep(0.1)
+            for i in range(0, 10):
+                time.sleep(0.1 * i)
                 try:
                     self.find_device(self.nfc_interface_only)
                     return
-                except RuntimeError:
+                except (RuntimeError, FileNotFoundError):
                     pass
         else:
             print("Please reboot authenticator and hit enter")
