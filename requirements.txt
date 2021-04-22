@@ -2,5 +2,6 @@ fido2 == 0.8.1
 pyscard
 pytest
 pytest-ordering
+pytest-rerunfailures
 seedweed >= 1.0rc7
 solo-python >=0.0.12
