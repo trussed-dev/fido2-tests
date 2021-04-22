@@ -42,7 +42,6 @@ def generate_rp():
 
 
 def generate_user():
-
     # https://www.w3.org/TR/webauthn/#user-handle
     user_id_length = random.randint(1, 64)
     user_id = secrets.token_bytes(user_id_length)
@@ -140,6 +139,7 @@ class FidoRequest:
             "pin_auth",
             "timeout",
             "on_keepalive",
+            "pin",
         ):
             self.save_attr(i, kwargs.get(i, Empty), request)
 
@@ -164,7 +164,7 @@ class FidoRequest:
     def toGA(
         self,
     ):
-        return [
+        args = [
             None if not self.rp else self.rp["id"],
             self.cdh,
             self.allow_list,
@@ -175,11 +175,16 @@ class FidoRequest:
             self.timeout,
             self.on_keepalive,
         ]
+        if self.pin:
+            args.append(self.pin)
+        return args
+
+
 
     def toMC(
         self,
     ):
-        return [
+        args = [
             self.cdh,
             self.rp,
             self.user,
@@ -192,8 +197,9 @@ class FidoRequest:
             self.timeout,
             self.on_keepalive,
         ]
-
-        return args + self.get_optional_args()
+        if self.pin:
+            args.append(self.pin)
+        return args
 
 
 # Timeout from:
