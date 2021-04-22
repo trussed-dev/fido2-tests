@@ -231,18 +231,22 @@ class TestDevice:
         dev = None
         self.nfc_interface_only = nfcInterfaceOnly
         if not nfcInterfaceOnly:
-            # print("--- HID ---")
-            # print(list(CtapHidDevice.list_devices()))
+            print("--- HID ---")
+            print(list(CtapHidDevice.list_devices()))
             dev = next(CtapHidDevice.list_devices(), None)
 
         else:
             from fido2.pcsc import CtapPcscDevice
 
-            # print("--- NFC ---")
-            # print(list(CtapPcscDevice.list_devices()))
-            dev = next(CtapPcscDevice.list_devices(), None)
+            print("--- NFC ---")
+            dev = next(MoreRobustPcscDevice.list_devices(), None)
+
             if dev:
                 self.is_nfc = True
+                # For ACR1252 readers, with drivers installed
+                # https://www.acs.com.hk/en/products/342/acr1252u-usb-nfc-reader-iii-nfc-forum-certified-reader
+                # disable auto pps, always use 106kbps
+                # dev.control_exchange(SCARD_CTL_CODE(0x3500), b"\xE0\x00\x00\x24\x02\x00\x00")
 
         if not dev:
             raise RuntimeError("No FIDO device found")
@@ -250,9 +254,6 @@ class TestDevice:
         self.client = Fido2Client(dev, self.origin)
         self.ctap2 = self.client.ctap2
         self.ctap1 = CTAP1(dev)
-
-        # consume timeout error
-        # cmd,resp = self.recv_raw()
 
     def set_user_count(self, count):
         self.user_count = count
@@ -338,12 +339,30 @@ class TestDevice:
         self,
     ):
         """
-        Send magic nfc reboot sequence for solokey
+        Send magic nfc reboot sequence for solokey, or reboot command for solov2.
         """
-        data = b"\x12\x56\xab\xf0"
-        header = struct.pack("!BBBBB", 0x00, 0xEE, 0x00, 0x00, len(data))
-        resp, sw1, sw2 = self.dev.apdu_exchange(header + data)
-        return sw1 == 0x90 and sw2 == 0x00
+
+        from smartcard.Exceptions import NoCardException, CardConnectionException
+
+        if "solokeys" in sys.argv:
+            data = b"\x12\x56\xab\xf0"
+            resp, sw1, sw2 = self.dev.apdu_exchange(header + data)
+            return sw1 == 0x90 and sw2 == 0x00
+        else:
+            # Select root app
+            apdu = b"\x00\xA4\x04\x00\x09\xA0\x00\x00\x08\x47\x00\x00\x00\x01"
+            resp, sw1, sw2 = self.dev._conn.transmit(list(apdu))
+            did_select = (sw1 == 0x90 and sw2 == 0x00)
+            if not did_select:
+                return False
+
+            # Send reboot command
+            apdu = b"\x00\x53\x00\x00"
+            try:
+                resp, sw1, sw2 = self.dev._conn.transmit(list(apdu))
+                return sw1 == 0x90 and sw2 == 0x00
+            except (NoCardException, CardConnectionException):
+                return True
 
     def cid(
         self,
@@ -404,13 +423,22 @@ class TestDevice:
             self.ctap2.reset(on_keepalive=DeviceSelectCredential(1))
         except CtapError:
             # Some authenticators need a power cycle
-            print("You must power cycle authentictor.  Hit enter when done.")
-            input()
-            time.sleep(0.2)
-            self.find_device(self.nfc_interface_only)
+            print("Need to power cycle authentictor to reset..")
+            self.reboot()
             self.ctap2.reset(on_keepalive=DeviceSelectCredential(1))
 
     def sendMC(self, *args, **kwargs):
+
+        if len(args) > 11:
+            # Add additional arg to calculate pin auth on demand
+            pin = args[-1]
+            args = list(args[:-1])
+            if args[7] == None and args[8] == None:
+                pin_token = self.client.pin_protocol.get_pin_token(pin)
+                pin_auth = hmac_sha256(pin_token, args[0])[:16]
+                args[7] = pin_auth
+                args[8] = 1
+
         attestation_object = self.ctap2.make_credential(*args, **kwargs)
         if attestation_object:
             verifier = Attestation.for_type(attestation_object.fmt)
@@ -423,6 +451,16 @@ class TestDevice:
         return attestation_object
 
     def sendGA(self, *args, **kwargs):
+        if len(args) > 9:
+            # Add additional arg to calculate pin auth on demand
+            pin = args[-1]
+            args = list(args[:-1])
+            if args[5] == None and args[6] == None:
+                pin_token = self.client.pin_protocol.get_pin_token(pin)
+                pin_auth = hmac_sha256(pin_token, args[1])[:16]
+                args[5] = pin_auth
+                args[6] = 1
+
         return self.ctap2.get_assertion(*args, **kwargs)
 
     def sendCP(self, *args, **kwargs):
