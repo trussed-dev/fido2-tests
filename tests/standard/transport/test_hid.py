@@ -2,7 +2,7 @@ import os
 import socket
 import sys
 import time
-from binascii import hexlify
+from binascii import hexlify, unhexlify
 
 import pytest
 from fido2.ctap import CtapError
@@ -221,3 +221,34 @@ class TestHID(object):
         assert cmd == 0xBF
         assert r[0] == CtapError.ERR.INVALID_CHANNEL
         device.set_cid("\x05\x04\x03\x02")
+
+    def test_keep_alive(self, device, check_timeouts=False):
+        if check_timeouts:
+            with pytest.raises(socket.timeout):
+                cmd, resp = self.recv_raw()
+
+        payload = b"\x11\x11\x11\x11\x11\x11\x11\x11"
+        r = device.send_data(CTAPHID.INIT, payload)
+
+        precanned_make_credential = unhexlify(
+            '01a401582031323334353637383961626364656630313233343536373'\
+            '8396162636465663002a26269646b6578616d706c652e6f7267646e61'\
+            '6d65694578616d706c65525003a462696446cc2abaf119f26469636f6'\
+            'e781f68747470733a2f2f7777772e77332e6f72672f54522f77656261'\
+            '7574686e2f646e616d657256696e204f6c696d7069612047657272696'\
+            '56b646973706c61794e616d65781c446973706c617965642056696e20'\
+            '4f6c696d706961204765727269650481a263616c672664747970656a7'\
+            '075626c69632d6b6579')
+
+        count = 0
+        def count_keepalive(_x):
+            nonlocal count
+            count += 1
+
+        # We should get a keepalive within .5s
+        try:
+            r = device.send_data(CTAPHID.CBOR, precanned_make_credential, timeout = .50, on_keepalive = count_keepalive)
+        except CtapError as e:
+            assert e.code == CtapError.ERR.KEEPALIVE_CANCEL
+
+        assert count > 0

@@ -294,12 +294,12 @@ class TestDevice:
             input()
             self.find_device(self.nfc_interface_only)
 
-    def send_data(self, cmd, data):
+    def send_data(self, cmd, data, timeout = 1.0, on_keepalive = None):
         if not isinstance(data, bytes):
             data = struct.pack("%dB" % len(data), *[ord(x) for x in data])
-        with Timeout(1.0) as event:
+        with Timeout(timeout) as event:
             event.is_set()
-            return self.dev.call(cmd, data, event)
+            return self.dev.call(cmd, data, event, on_keepalive = on_keepalive)
 
     def send_raw(self, data, cid=None):
         if cid is None:
