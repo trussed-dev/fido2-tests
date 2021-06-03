@@ -223,12 +223,6 @@ class TestHID(object):
         device.set_cid("\x05\x04\x03\x02")
 
     def test_keep_alive(self, device, check_timeouts=False):
-        if check_timeouts:
-            with pytest.raises(socket.timeout):
-                cmd, resp = self.recv_raw()
-
-        payload = b"\x11\x11\x11\x11\x11\x11\x11\x11"
-        r = device.send_data(CTAPHID.INIT, payload)
 
         precanned_make_credential = unhexlify(
             '01a401582031323334353637383961626364656630313233343536373'\
@@ -250,5 +244,13 @@ class TestHID(object):
             r = device.send_data(CTAPHID.CBOR, precanned_make_credential, timeout = .50, on_keepalive = count_keepalive)
         except CtapError as e:
             assert e.code == CtapError.ERR.KEEPALIVE_CANCEL
-
         assert count > 0
+
+        # wait for authnr to get UP or timeout
+        while True:
+            try:
+                r = device.send_data(CTAPHID.CBOR, '\x04') # getInfo
+                break
+            except CtapError as e:
+                assert e.code == CtapError.ERR.CHANNEL_BUSY
+
