@@ -1,4 +1,5 @@
 import pytest
+from fido2.client import ClientError
 from fido2.ctap1 import APDU, CTAP1, ApduError
 from fido2.utils import sha256
 
@@ -89,11 +90,11 @@ class TestU2F(object):
             )
         assert e.value.code == APDU.WRONG_DATA
 
-        with pytest.raises(ApduError) as e:
-            device.ctap1.authenticate(
+        with pytest.raises(ClientError) as e:
+            device.authenticate(
                 RegRes.request.challenge, RegRes.request.appid, kh
             )
-        assert e.value.code == APDU.WRONG_DATA
+        assert e.value.cause.code == APDU.WRONG_DATA
 
     def test_bad_key_handle_length(self, device, RegRes):
         kh = bytearray(RegRes.key_handle)
