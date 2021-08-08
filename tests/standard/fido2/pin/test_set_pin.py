@@ -20,6 +20,7 @@ class TestSetPin(object):
         assert e.value.code in (CtapError.ERR.PIN_NOT_SET, CtapError.ERR.NO_CREDENTIALS)
 
     def test_set_pin(self, device):
+        device.reset()
         device.client.pin_protocol.set_pin("TestPin")
         device.reset()
 
@@ -39,6 +40,7 @@ class TestSetPin(object):
         assert e.value.code == CtapError.ERR.PIN_NOT_SET
 
     def test_setting_pin_and_get_info(self, device):
+        device.reset()
         device.client.pin_protocol.set_pin("TestPin")
 
         with pytest.raises(CtapError) as e:
