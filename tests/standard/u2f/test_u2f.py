@@ -99,18 +99,18 @@ class TestU2F(object):
     def test_bad_key_handle_length(self, device, RegRes):
         kh = bytearray(RegRes.key_handle)
 
-        with pytest.raises(ApduError) as e:
-            device.ctap1.authenticate(
+        with pytest.raises(ClientError) as e:
+            device.authenticate(
                 RegRes.request.challenge, RegRes.request.appid, kh[: len(kh) // 2]
             )
-        assert e.value.code == APDU.WRONG_DATA
+        assert e.value.cause.code == APDU.WRONG_DATA
 
     def test_incorrect_appid(self, device, RegRes):
 
         badid = bytearray(RegRes.request.appid)
         badid[0] = badid[0] ^ (0x40)
-        with pytest.raises(ApduError) as e:
-            auth = device.ctap1.authenticate(
+        with pytest.raises(ClientError) as e:
+            device.authenticate(
                 RegRes.request.challenge, badid, RegRes.key_handle
             )
-        assert e.value.code == APDU.WRONG_DATA
+        assert e.value.cause.code == APDU.WRONG_DATA
