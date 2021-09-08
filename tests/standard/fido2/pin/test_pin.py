@@ -60,7 +60,7 @@ class TestPin(object):
         with pytest.raises(CtapError) as e:
             device.client.pin_protocol.set_pin('1234')
 
-        assert e.value.code == CtapError.ERR.NOT_ALLOWED
+        assert e.value.code == CtapError.ERR.PIN_AUTH_INVALID
 
 
     def test_get_key_agreement_fields(self, CPRes):
@@ -99,11 +99,11 @@ class TestPin(object):
     def test_zero_length_pin_auth(self, device, SetPinRes):
         with pytest.raises(CtapError) as e:
             reg = device.sendMC(*FidoRequest(SetPinRes, pin_auth=b"").toMC())
-        assert e.value.code == CtapError.ERR.PIN_AUTH_INVALID
+        assert e.value.code == CtapError.ERR.PIN_INVALID
 
         with pytest.raises(CtapError) as e:
             reg = device.sendGA(*FidoRequest(SetPinRes, pin_auth=b"").toGA())
-        assert e.value.code == CtapError.ERR.PIN_AUTH_INVALID
+        assert e.value.code == CtapError.ERR.PIN_INVALID
 
     def test_make_credential_no_pin(self, device, SetPinRes):
         with pytest.raises(CtapError) as e:

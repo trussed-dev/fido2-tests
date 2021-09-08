@@ -34,7 +34,7 @@ class TestUserPresence(object):
                 device.sendGA(
                     *FidoRequest(GARes, timeout=event, on_keepalive=None).toGA()
                 )
-        assert e.value.code == CtapError.ERR.KEEPALIVE_CANCEL
+        assert e.value.code == CtapError.ERR.OPERATION_DENIED
 
     @pytest.mark.skipif(
         not "trezor" in sys.argv, reason="Only Trezor supports decline."
