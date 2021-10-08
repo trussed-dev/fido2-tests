@@ -45,7 +45,7 @@ class TestResidentKeyPersistance(object):
     @pytest.mark.parametrize("do_reboot", [False, True])
     def test_user_info_returned_when_using_allowlist(self, device, MC_RK_Res, GA_RK_Res, do_reboot):
         assert "id" in GA_RK_Res.user.keys()
-        
+
         allow_list = [
             {
                 "id": MC_RK_Res.auth_data.credential_data.credential_id[:],
@@ -66,7 +66,7 @@ class TestResidentKeyPersistance(object):
 class TestResidentKeyAfterReset(object):
     def test_with_allow_list_after_reset(self, device, MC_RK_Res, GA_RK_Res):
         assert "id" in GA_RK_Res.user.keys()
-        
+
         allow_list = [
             {
                 "id": MC_RK_Res.auth_data.credential_data.credential_id[:],
@@ -418,3 +418,32 @@ class TestResidentKey(object):
         device.sendMC(*req.toMC())
 
 
+    def test_returned_credential(self, device):
+        """
+        Test that when two rk credentials put in allow_list,
+        only 1 will get returned.
+        """
+        device.reset()
+        pin = '12345'
+        device.client.pin_protocol.set_pin(pin)
+        req = FidoRequest(pin = pin, options={"rk": True})
+
+        regs = []
+        allow_list = []
+        for i in range(0, 2):
+            req = FidoRequest(req, user = {
+                "id": b'123456' + bytes([i]), "name": f'Test User {i}', "displayName": f'Test User display {i}'
+            })
+            res = device.sendMC(*req.toMC())
+            setattr(res, "request", req)
+            regs.append(res)
+            allow_list.append({"id": res.auth_data.credential_data.credential_id[:], "type": "public-key"})
+
+
+        print('allow_list: ' , allow_list)
+        ga_req = FidoRequest(pin = pin, allow_list=allow_list)
+        device.sendGA(*ga_req.toGA())
+
+        # No other credentials should be returned
+        with pytest.raises(CtapError) as e:
+            device.ctap2.get_next_assertion()

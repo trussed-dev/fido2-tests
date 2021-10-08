@@ -55,6 +55,11 @@ def TestCborKeysSorted(cbor_obj):
     else:
         l = cbor_obj
 
+    if len(l) > 0 and isinstance(l[0], dict):
+        for obj in l:
+            TestCborKeysSorted(obj)
+        return
+
     l_sorted = sorted(l[:], key=cmp_to_key(cmp_cbor_keys))
 
     for i in range(len(l)):
