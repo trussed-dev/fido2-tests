@@ -442,8 +442,12 @@ class TestResidentKey(object):
 
         print('allow_list: ' , allow_list)
         ga_req = FidoRequest(pin = pin, allow_list=allow_list)
-        device.sendGA(*ga_req.toGA())
+        ga_res = device.sendGA(*ga_req.toGA())
 
         # No other credentials should be returned
         with pytest.raises(CtapError) as e:
             device.ctap2.get_next_assertion()
+
+        # the returned credential should have user id in it
+        print(ga_res)
+        assert 'id' in ga_res.user and len(ga_res.user["id"]) > 0
