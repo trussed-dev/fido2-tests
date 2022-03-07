@@ -1,5 +1,6 @@
 import sys
 import pytest
+from cryptography.exceptions import InvalidSignature
 from fido2.ctap import CtapError
 from fido2.utils import hmac_sha256, sha256
 
@@ -40,7 +41,8 @@ class TestGetAssertion(object):
         rp1_assertions = []
         rp2_assertions = []
 
-        for i in range(0,4):
+        l1 = 2
+        for i in range(0, l1):
             res = device.sendMC(*req1.toMC())
             rp1_registrations.append(res)
             allow_list.append({
@@ -48,7 +50,8 @@ class TestGetAssertion(object):
                 "type": "public-key",
             })
 
-        for i in range(0,6):
+        l2 = 2
+        for i in range(0, l2):
             res = device.sendMC(*req2.toMC())
             rp2_registrations.append(res)
             allow_list.append({
@@ -59,31 +62,62 @@ class TestGetAssertion(object):
         req1 = FidoRequest(req1, allow_list = allow_list)
         req2 = FidoRequest(req2, allow_list = allow_list)
 
+        # CTAP 2.1: If allowlist is passed, only one (any) applicable
+        # credential signs, and numberOfCredentials = None is returned.
+        # <https://fidoalliance.org/specs/fido-v2.1-ps-20210615/fido-client-to-authenticator-protocol-v2.1-ps-20210615.html#:~:text=If%20the%20allowList%20parameter%20is%20present%3A,Go%20to%20Step%2013>
+        #
+        # CTAP 2.0: Expects the authenticator to return the total number
+        # even when allowlist is passed (and hence keep the credential IDs
+        # cached.
+
         # Should authenticate to all credentials matching rp1
         ga_res1 = device.sendGA(*req1.toGA())
-        assert ga_res1.number_of_credentials == len(rp1_registrations)
-
         rp1_assertions.append(ga_res1)
-        for i in range(len(rp1_registrations) - 1):
-            rp1_assertions.append(device.ctap2.get_next_assertion())
+        if ga_res1.number_of_credentials != None:
+            for _ in range(l1 - 1):
+                rp1_assertions.append(device.ctap2.get_next_assertion())
 
         # Should authenticate to all credentials matching rp2
         ga_res2 = device.sendGA(*req2.toGA())
-        assert ga_res2.number_of_credentials == len(rp2_registrations)
-
         rp2_assertions.append(ga_res2)
-        for i in range(len(rp2_registrations) - 1):
-            rp2_assertions.append(device.ctap2.get_next_assertion())
+        if ga_res2.number_of_credentials != None:
+            for _ in range(l2 - 1):
+                rp2_assertions.append(device.ctap2.get_next_assertion())
 
-        # Assertions return in order of most recently created credential.
-        rp1_assertions.reverse()
-        rp2_assertions.reverse()
+        counts = (
+            ga_res1.number_of_credentials,
+            ga_res2.number_of_credentials)
 
-        for (reg, auth) in zip(rp1_registrations, rp1_assertions):
-            verify(reg, auth, req1.cdh)
+        assert counts in [(None, None), (l1, l2)]
 
-        for (reg, auth) in zip(rp2_registrations, rp2_assertions):
-            verify(reg, auth, req2.cdh)
+        if counts != (None, None):
+            # Assertions return in order of most recently created credential.
+            rp1_assertions.reverse()
+            rp2_assertions.reverse()
+
+            for (reg, auth) in zip(rp1_registrations, rp1_assertions):
+                verify(reg, auth, req1.cdh)
+            for (reg, auth) in zip(rp2_registrations, rp2_assertions):
+                verify(reg, auth, req2.cdh)
+
+        else:
+            rp1_verifs = 0
+            for reg in rp1_registrations:
+                try:
+                    verify(reg, ga_res1, req1.cdh)
+                    rp1_verifs += 1
+                except InvalidSignature:
+                    pass
+            assert rp1_verifs == 1
+
+            rp2_verifs = 0
+            for reg in rp2_registrations:
+                try:
+                    verify(reg, ga_res2, req2.cdh)
+                    rp2_verifs += 1
+                except InvalidSignature:
+                    pass
+            assert rp2_verifs == 1
 
     def test_corrupt_credId(self, device, MCRes):
         # apply bit flip
@@ -205,8 +239,6 @@ class TestGetAssertion(object):
             )
 
     def test_user_presence_option_false(self, device, MCRes, GARes):
-        from cryptography.exceptions import InvalidSignature
-
         res = device.sendGA(*FidoRequest(GARes, options={"up": False}).toGA())
 
         try:

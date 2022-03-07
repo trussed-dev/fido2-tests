@@ -128,15 +128,16 @@ class TestCredProtect(object):
 
         # works
         res1 = device.sendGA(*req.toGA())
+        assert res1.number_of_credentials in (None, 2)
 
-        assert res1.number_of_credentials == 2
-
-        res2 = device.ctap2.get_next_assertion()
+        results = [res1]
+        if res1.number_of_credentials == 2:
+            res2 = device.ctap2.get_next_assertion()
+            results.append(res2)
 
         # the required credProtect is not returned.
-        for res in (res1,res2):
+        for res in results:
             assert res.credential["id"] != MCCredProtectRequired.auth_data.credential_data.credential_id[:]
-
 
     def test_hmac_secret_and_credProtect_make_credential(
         self, resetDevice, MCCredProtectOptional
@@ -180,8 +181,10 @@ class TestCredProtectUv:
 
         res1 = device.sendGA(*req.toGA())
 
-        assert res1.number_of_credentials == 3
+        assert res1.number_of_credentials in (None, 3)
 
-        res2 = device.ctap2.get_next_assertion()
-        res3 = device.ctap2.get_next_assertion()
+        if res1.number_of_credentials == 3:
+
+            res2 = device.ctap2.get_next_assertion()
+            res3 = device.ctap2.get_next_assertion()
 
