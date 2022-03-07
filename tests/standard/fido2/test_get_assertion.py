@@ -41,7 +41,7 @@ class TestGetAssertion(object):
         rp1_assertions = []
         rp2_assertions = []
 
-        l1 = 2
+        l1 = 4
         for i in range(0, l1):
             res = device.sendMC(*req1.toMC())
             rp1_registrations.append(res)
@@ -50,7 +50,7 @@ class TestGetAssertion(object):
                 "type": "public-key",
             })
 
-        l2 = 2
+        l2 = 6
         for i in range(0, l2):
             res = device.sendMC(*req2.toMC())
             rp2_registrations.append(res)
