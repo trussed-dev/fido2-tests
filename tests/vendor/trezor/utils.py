@@ -1,8 +1,7 @@
 import os
-import socket
 from fido2.ctap import STATUS
 
-from trezorlib import debuglink, models
+from trezorlib import debuglink
 from trezorlib.debuglink import TrezorClientDebugLink, LayoutType
 from trezorlib.device import wipe as wipe_device
 from trezorlib.transport import enumerate_devices, get_transport
@@ -68,7 +67,7 @@ class DeviceSelectCredential:
         # avoid homescreen
         TREZOR_CLIENT.debug.synchronize_at("Frame")
 
-        if TREZOR_CLIENT.debug.layout_type is LayoutType.TT:
+        if TREZOR_CLIENT.debug.layout_type is LayoutType.Ford:
             if self.number == 0:
                 TREZOR_CLIENT.debug.press_no()
             else:
@@ -92,7 +91,9 @@ class DeviceSelectCredential:
                 index = self.number - 1
                 for _ in range(index // 2):
                     TREZOR_CLIENT.debug.swipe_up()
-                TREZOR_CLIENT.debug.click(CLICK_UPPER if index % 2 == 0 else CLICK_LOWER)
+                TREZOR_CLIENT.debug.click(
+                    CLICK_UPPER if index % 2 == 0 else CLICK_LOWER
+                )
 
             # credential details
             TREZOR_CLIENT.debug.swipe_up()
