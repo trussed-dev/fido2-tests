@@ -102,6 +102,7 @@ def assert_cred_response_has_all_fields(cred_res):
         assert i in cred_res
 
 
+@pytest.mark.interactive
 class TestCredentialManagement(object):
     def test_get_info(self, info):
         assert "credMgmt" in info.options

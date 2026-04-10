@@ -24,6 +24,23 @@ def pytest_addoption(parser):
     parser.addoption("--nfc", action="store_true")
     parser.addoption("--experimental", action="store_true")
     parser.addoption("--vendor", default="none")
+    parser.addoption("--non-interactive", action="store_true",
+        help="Skip tests that require user presence (button press) or power cycling")
+
+
+def pytest_configure(config):
+    config.addinivalue_line(
+        "markers", "interactive: test requires user presence or power cycling"
+    )
+
+
+def pytest_collection_modifyitems(config, items):
+    if not config.getoption("--non-interactive"):
+        return
+    skip = pytest.mark.skip(reason="skipped in non-interactive mode (requires UP or power cycle)")
+    for item in items:
+        if "interactive" in item.keywords:
+            item.add_marker(skip)
 
 
 @pytest.fixture()

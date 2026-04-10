@@ -418,6 +418,7 @@ class TestResidentKey(object):
         device.sendMC(*req.toMC())
 
 
+    @pytest.mark.interactive
     def test_returned_credential(self, device):
         """
         Test that when two rk credentials put in allow_list,

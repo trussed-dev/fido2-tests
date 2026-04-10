@@ -222,6 +222,7 @@ class TestHID(object):
         assert r[0] == CtapError.ERR.INVALID_CHANNEL
         device.set_cid("\x05\x04\x03\x02")
 
+    @pytest.mark.interactive
     def test_keep_alive(self, device, check_timeouts=False):
 
         precanned_make_credential = unhexlify(

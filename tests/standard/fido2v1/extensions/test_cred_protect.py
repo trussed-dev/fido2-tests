@@ -37,6 +37,7 @@ def MCCredProtectRequired(
 
 
 
+@pytest.mark.interactive
 class TestCredProtect(object):
     def test_credprotect_make_credential_1(self, MCCredProtectOptional):
         assert MCCredProtectOptional.auth_data.extensions
@@ -153,6 +154,7 @@ class TestCredProtect(object):
             assert res.auth_data.extensions[ext] == True
 
 
+@pytest.mark.interactive
 class TestCredProtectUv:
     def test_credprotect_all_with_uv(self, device, MCCredProtectOptional, MCCredProtectOptionalList, MCCredProtectRequired):
         allow_list = [

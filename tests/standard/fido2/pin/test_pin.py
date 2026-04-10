@@ -139,6 +139,7 @@ class TestChangePin:
 
         verify(reg, auth, cdh=SetPinRes.request.cdh)
 
+@pytest.mark.interactive
 class TestPinAttempts:
     @pytest.mark.skipif(
         "trezor" in sys.argv, reason="ClientPin is not supported on Trezor."
