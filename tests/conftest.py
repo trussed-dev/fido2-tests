@@ -26,21 +26,25 @@ def pytest_addoption(parser):
     parser.addoption("--vendor", default="none")
     parser.addoption("--non-interactive", action="store_true",
         help="Skip tests that require user presence (button press) or power cycling")
+    parser.addoption("--no-ctap1", action="store_true",
+        help="Skip CTAP1/U2F tests")
 
 
 def pytest_configure(config):
     config.addinivalue_line(
         "markers", "interactive: test requires user presence or power cycling"
     )
+    config.addinivalue_line(
+        "markers", "ctap1: test requires CTAP1/U2F support"
+    )
 
 
 def pytest_collection_modifyitems(config, items):
-    if not config.getoption("--non-interactive"):
-        return
-    skip = pytest.mark.skip(reason="skipped in non-interactive mode (requires UP or power cycle)")
     for item in items:
-        if "interactive" in item.keywords:
-            item.add_marker(skip)
+        if config.getoption("--non-interactive") and "interactive" in item.keywords:
+            item.add_marker(pytest.mark.skip(reason="skipped in non-interactive mode"))
+        if config.getoption("--no-ctap1") and "ctap1" in item.keywords:
+            item.add_marker(pytest.mark.skip(reason="skipped: CTAP1/U2F not supported"))
 
 
 @pytest.fixture()
