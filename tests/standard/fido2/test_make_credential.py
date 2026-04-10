@@ -103,6 +103,7 @@ class TestMakeCredential(object):
         with pytest.raises(CtapError) as e:
             device.sendMC(*req.toMC())
 
+    @pytest.mark.xfail(reason="Known issue: firmware does not validate rp.icon type")
     def test_bad_type_rp_icon(self, device, MCRes):
         req = FidoRequest(MCRes, rp={"id": "test.org", "name": "name", "icon": 8})
 

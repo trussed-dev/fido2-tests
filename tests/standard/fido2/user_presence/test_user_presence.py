@@ -27,6 +27,7 @@ class TestUserPresence(object):
         print("ACTIVATE UP ONCE")
         device.sendGA(*FidoRequest(GARes).toGA())
 
+    @pytest.mark.interactive
     def test_no_user_presence(self, device, MCRes, GARes):
         print("DO NOT ACTIVATE UP")
         with pytest.raises(CtapError) as e:
@@ -71,6 +72,7 @@ class TestUserPresence(object):
                 )
         assert e.value.code == CtapError.ERR.INVALID_OPTION
 
+    @pytest.mark.interactive
     def test_user_presence_permits_only_one_request(self, device, MCRes, GARes):
         print("ACTIVATE UP ONCE")
         device.sendGA(*FidoRequest(GARes).toGA())
