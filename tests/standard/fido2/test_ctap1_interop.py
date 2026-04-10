@@ -7,7 +7,6 @@ from tests.utils import FidoRequest
 
 
 # Test U2F register works with FIDO2 auth
-@pytest.mark.interactive
 class TestCtap1WithCtap2(object):
     def test_ctap1_register(self, RegRes):
         RegRes.verify(RegRes.request.appid, RegRes.request.challenge)

@@ -7,7 +7,6 @@ from fido2.utils import hmac_sha256, sha256
 from tests.utils import *
 
 
-@pytest.mark.interactive
 @pytest.mark.skipif(
     ("--sim" in sys.argv or "--nfc" in sys.argv) and not "trezor" in sys.argv,
     reason="Simulation doesn't care about user presence",

@@ -6,7 +6,6 @@ from fido2.utils import sha256
 from tests.utils import FidoRequest, verify
 
 
-@pytest.mark.interactive
 class TestU2F(object):
     def test_u2f_reg(self, device, RegRes):
         RegRes.verify(RegRes.request.appid, RegRes.request.challenge)
